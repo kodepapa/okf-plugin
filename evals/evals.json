@@ -1,0 +1,60 @@
+{
+  "skill_name": "okf",
+  "evals": [
+    {
+      "id": 0,
+      "eval_name": "create-bundle-from-ddl",
+      "skill": "skills/okf-author",
+      "prompt": "I have a Postgres schema for our e-commerce shop in shop_schema.sql (in your working directory). Create an OKF (Open Knowledge Format) knowledge bundle documenting this schema at ./shop-kb \u2014 one concept per table, plus whatever structure a good bundle needs.",
+      "expected_output": "A conformant OKF bundle: every concept .md has YAML frontmatter with non-empty type, one-sentence descriptions, schema tables matching the DDL, cross-links between related tables, index.md files, and a log.md.",
+      "files": [
+        "fixtures/shop_schema.sql"
+      ],
+      "assertions": [
+        "okf.py validate on shop-kb reports 0 errors (parseable frontmatter + non-empty type everywhere)",
+        "all four DDL tables (customers, products, orders, order_items) have a concept document in the bundle",
+        "okf.py validate reports 0 warnings (no missing descriptions, no broken links)",
+        "bundle root contains an index.md listing the bundle contents",
+        "bundle contains a log.md whose entries use ISO YYYY-MM-DD date headings",
+        "concept documents cross-link related tables (e.g. orders links to customers) with resolvable markdown links",
+        "each table concept has a # Schema section covering the columns from the DDL"
+      ]
+    },
+    {
+      "id": 1,
+      "eval_name": "enrich-existing-bundle",
+      "skill": "skills/okf-author",
+      "prompt": "In your working directory there's an OKF knowledge bundle at ./ga4 documenting the GA4 BigQuery sample dataset. Add a new metric concept 'purchase_conversion_rate' (share of users who triggered a purchase event, i.e. purchasers / total users) alongside the existing metrics, and make sure the bundle stays consistent and up to date.",
+      "expected_output": "New concept at ga4/references/metrics/purchase_conversion_rate.md with frontmatter (type Reference, one-sentence description, tags), SQL example, style matching sibling metrics; references/metrics/index.md updated; log entry added; bundle still validates with 0 errors.",
+      "files": [
+        "fixtures/ga4"
+      ],
+      "assertions": [
+        "ga4/references/metrics/purchase_conversion_rate.md exists with frontmatter containing type and a one-sentence description",
+        "ga4/references/metrics/index.md lists the new purchase_conversion_rate metric",
+        "okf.py validate on the modified ga4 bundle reports 0 errors",
+        "the new concept contains a fenced sql example expressing purchasers / total users",
+        "the new concept's style matches sibling metrics (type Reference, tags include metric, prose + sql + citations shape)",
+        "no pre-existing ga4 documents were broken (all previously present concept files still exist and validate)"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "answer-from-bundle",
+      "skill": "skills/okf-read",
+      "prompt": "There's a knowledge bundle at ./ga4 in your working directory. Using only that bundle, explain how I'd compute the average spend per purchase-session for each user: which table(s) and fields are involved, and what does the bundle say the calculation is? Write your answer to answer.md and cite the bundle documents you used.",
+      "expected_output": "answer.md correctly derived from ga4/references/metrics/avg_spend_per_purchase_session_by_user.md and tables/events_.md (events_ table, ecommerce.purchase_revenue / purchase sessions per user), citing those concept paths.",
+      "files": [
+        "fixtures/ga4"
+      ],
+      "assertions": [
+        "answer.md exists in the run's outputs directory",
+        "answer.md identifies the events_ table as the data source",
+        "answer.md mentions the key fields: ecommerce.purchase_revenue (or purchase revenue), user_pseudo_id and ga_session_id session grouping, and event_name = 'purchase'",
+        "answer.md states the calculation per the bundle: AVG of per-session purchase spend, grouped per user",
+        "answer.md cites bundle document paths it used (the avg_spend_per_purchase_session_by_user metric and/or events_ table doc)",
+        "the ga4 bundle was not modified (read-only task)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+.DS_Store
+okf-skill-workspace/*
+!okf-skill-workspace/grade.py

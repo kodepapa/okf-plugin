@@ -1,0 +1,13 @@
+{
+  "name": "okf-plugin",
+  "owner": {
+    "name": "kodepapa"
+  },
+  "plugins": [
+    {
+      "name": "okf",
+      "source": "./",
+      "description": "Author and consume Open Knowledge Format (OKF) bundles: okf-author for creating/enriching bundles, okf-read for navigating and querying them."
+    }
+  ]
+}

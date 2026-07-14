@@ -1,0 +1,18 @@
+repos:
+  - repo: local
+    hooks:
+      - id: okfleet-demo-validate
+        name: Validate OKFleet demo bundle
+        entry: uv run okfleet validate examples/demo-bundle
+        language: system
+        pass_filenames: false
+      - id: okfleet-demo-index
+        name: Check OKFleet demo indexes
+        entry: uv run okfleet index examples/demo-bundle --check
+        language: system
+        pass_filenames: false
+      - id: okfleet-generated
+        name: Verify generated OKF helpers
+        entry: uv run python tools/verify_generated.py
+        language: system
+        pass_filenames: false

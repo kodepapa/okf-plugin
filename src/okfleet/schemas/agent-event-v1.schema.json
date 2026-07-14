@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://okfleet.dev/schemas/agent-event-v1.schema.json",
+  "title": "OKFleet normalized agent event v1",
+  "type": "object",
+  "required": ["type", "text", "data"],
+  "properties": {
+    "type": {
+      "enum": [
+        "session_started", "message_delta", "message_completed", "tool_started",
+        "tool_completed", "file_changed", "usage", "turn_completed", "turn_failed", "error"
+      ]
+    },
+    "text": {"type": "string"},
+    "data": {"type": "object"}
+  },
+  "additionalProperties": false
+}

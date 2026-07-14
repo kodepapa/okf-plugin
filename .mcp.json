@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "okfleet": {
+      "command": "okfleet",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+

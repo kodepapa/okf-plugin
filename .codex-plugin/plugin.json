@@ -1,0 +1,30 @@
+{
+  "name": "okf-plugin",
+  "version": "0.5.0",
+  "description": "OKFleet toolkit skills and read-only MCP tools for Open Knowledge Format bundles.",
+  "author": {
+    "name": "kodepapa",
+    "url": "https://github.com/kodepapa"
+  },
+  "homepage": "https://github.com/kodepapa/okf-plugin",
+  "repository": "https://github.com/kodepapa/okf-plugin",
+  "keywords": ["okf", "knowledge-management", "codex", "agent-skills"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "OKFleet",
+    "shortDescription": "Explore and improve OKF knowledge bundles",
+    "longDescription": "Read, author, validate, search, and connect Open Knowledge Format bundles with OKFleet skills and local read-only tools.",
+    "developerName": "kodepapa",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://github.com/kodepapa/okf-plugin",
+    "defaultPrompt": [
+      "Explore this OKF bundle and explain its structure.",
+      "Validate this bundle and fix its knowledge gaps.",
+      "Trace how these OKF concepts relate."
+    ],
+    "brandColor": "#39D98A"
+  }
+}
+

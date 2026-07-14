@@ -1,5 +1,5 @@
 {
   "name": "okf",
-  "description": "Work with Open Knowledge Format (OKF) bundles: author and enrich knowledge bundles (markdown + YAML frontmatter concepts), and navigate/query existing bundles.",
-  "version": "0.1.0"
+  "description": "OKFleet skills for reading, authoring, validating, and connecting Open Knowledge Format bundles.",
+  "version": "0.5.0"
 }

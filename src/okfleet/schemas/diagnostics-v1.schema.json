@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://okfleet.dev/schemas/diagnostics-v1.schema.json",
+  "title": "OKFleet diagnostics response v1",
+  "type": "object",
+  "required": ["schema_version", "diagnostics"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "severity", "message", "path"],
+        "properties": {
+          "code": {"type": "string"},
+          "severity": {"enum": ["error", "warning", "info"]},
+          "message": {"type": "string"},
+          "path": {"type": "string"},
+          "line": {"type": ["integer", "null"], "minimum": 1},
+          "column": {"type": ["integer", "null"], "minimum": 1},
+          "fix_id": {"type": ["string", "null"]}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

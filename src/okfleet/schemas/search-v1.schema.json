@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://okfleet.dev/schemas/search-v1.schema.json",
+  "title": "OKFleet search response v1",
+  "type": "object",
+  "required": ["schema_version", "hits"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "hits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "bundle_id", "bundle_alias", "concept_id", "title", "concept_type",
+          "description", "snippet", "score", "path", "citation"
+        ],
+        "properties": {
+          "bundle_id": {"type": "string"},
+          "bundle_alias": {"type": "string"},
+          "concept_id": {"type": "string"},
+          "title": {"type": "string"},
+          "concept_type": {"type": "string"},
+          "description": {"type": "string"},
+          "snippet": {"type": "string"},
+          "score": {"type": "number"},
+          "path": {"type": "string"},
+          "citation": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

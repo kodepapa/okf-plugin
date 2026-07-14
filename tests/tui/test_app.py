@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from textual.widgets import Static
 
+from okfleet.branding import PLAIN_MARK, brand_text
 from okfleet.tui.app import OKFleetApp
 
 
@@ -14,6 +16,11 @@ async def test_tui_mounts_and_discovers_bundle(bundle_path: Path) -> None:
         await pilot.pause()
         assert app.refs
         assert any(ref.path == bundle_path for ref in app.refs)
+        assert app.query_one("#brand", Static).content.plain == brand_text().plain
+
+
+def test_terminal_brand_matches_plain_fleet_mark() -> None:
+    assert brand_text().plain.replace("  OKFleet", "") == PLAIN_MARK
 
 
 @pytest.mark.asyncio

@@ -24,6 +24,7 @@ from textual.widgets import (
 )
 
 from ..agents import provider_for
+from ..branding import brand_text
 from ..chat import ChatService
 from ..core import graph_mermaid, graph_neighborhood, inbound_links, load_bundle, validate_bundle
 from ..models import (
@@ -51,6 +52,7 @@ class OKFleetApp(App[None]):
     #main { width: 1fr; }
     #inspector { width: 42; min-width: 30; border-left: solid $primary; }
     #bundle-tree { height: 1fr; }
+    #brand { height: 4; padding: 0 1; margin-top: 1; }
     #scope-label { height: auto; padding: 0 1; color: $text-muted; }
     #search-input { margin: 0 1; }
     #tabs { height: 1fr; }
@@ -102,8 +104,9 @@ class OKFleetApp(App[None]):
         yield Header(show_clock=True)
         with Horizontal(id="body"):
             with Vertical(id="sidebar"):
+                yield Static(brand_text(), id="brand")
                 yield Label("LOCAL / FLEET", id="scope-label")
-                yield Tree("OKFleet", id="bundle-tree")
+                yield Tree("Bundles", id="bundle-tree")
             with Vertical(id="main"):
                 yield Input(
                     placeholder="Search concepts (type:Metric tag:finance)", id="search-input"

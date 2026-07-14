@@ -11,3 +11,5 @@
 - Preserved the standalone `validate`, `index`, and `list` helper commands.
 - Added opt-in local semantic retrieval, saved searches, structured importers, bundle drift reports, policy packs, and extension entry points.
 - Added explicit Git-backed remote caches, a read-only local web explorer, and an LSP server for diagnostics and internal-link navigation.
+- Added a compact OKFleet visual identity shared by the README and TUI terminal artwork.
+- Added manifest-driven Release Please automation for synchronized Python and plugin releases.

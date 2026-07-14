@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/okfleet-logo.svg" alt="OKFleet — Open knowledge. One terminal. Every bundle." width="680">
+  <img src="./assets/okfleet-logo.svg" alt="OKFleet — Open Knowledge Format toolkit" width="560">
 </p>
 
 <p align="center">
@@ -9,6 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/kodepapa/okf-plugin/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/kodepapa/okf-plugin/ci.yml?branch=main&amp;style=flat-square&amp;logo=github&amp;label=CI&amp;color=2563EB"></a>
+  <a href="https://github.com/kodepapa/okf-plugin/actions/workflows/release-please.yml"><img alt="Release Please" src="https://img.shields.io/github/actions/workflow/status/kodepapa/okf-plugin/release-please.yml?branch=main&amp;style=flat-square&amp;logo=google&amp;label=release&amp;color=0EA5E9"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-2563EB?style=flat-square&amp;logo=python&amp;logoColor=white">
   <img alt="Project status: beta" src="https://img.shields.io/badge/status-beta-0EA5E9?style=flat-square">
   <img alt="Local first" src="https://img.shields.io/badge/local--first-yes-0284C7?style=flat-square&amp;logo=sqlite&amp;logoColor=white">
@@ -232,6 +233,7 @@ Read the full [security and privacy model](docs/SECURITY.md).
 | [OKF compatibility](docs/OKF_COMPATIBILITY.md) | Specification support and standalone-helper parity. |
 | [Security](docs/SECURITY.md) | Trust boundaries, privacy, staging, and remote-access guidance. |
 | [Contributing](CONTRIBUTING.md) | Local setup, tests, and contribution workflow. |
+| [Releasing](docs/RELEASING.md) | Conventional commits, Release Please, tags, and GitHub releases. |
 | [Changelog](CHANGELOG.md) | User-visible changes by release. |
 
 ## Configuration

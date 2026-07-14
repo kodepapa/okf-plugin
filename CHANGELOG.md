@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Renamed the canonical repository and plugin marketplace identity from `okf-plugin` to
+  `okfleet`.
 - Simplified the TUI into a focused two-pane library and document workspace with a compact
   Spotlight search and an on-demand, responsive chat drawer.
 - Added canonical `CLAUDE.md` and Claude project-skill symlinks while keeping shared agent

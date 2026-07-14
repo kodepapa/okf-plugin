@@ -8,8 +8,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kodepapa/okf-plugin/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/kodepapa/okf-plugin/ci.yml?branch=main&amp;style=flat-square&amp;logo=github&amp;label=CI&amp;color=2563EB"></a>
-  <a href="https://github.com/kodepapa/okf-plugin/actions/workflows/release-please.yml"><img alt="Release Please" src="https://img.shields.io/github/actions/workflow/status/kodepapa/okf-plugin/release-please.yml?branch=main&amp;style=flat-square&amp;logo=google&amp;label=release&amp;color=0EA5E9"></a>
+  <a href="https://github.com/kodepapa/okfleet/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/kodepapa/okfleet/ci.yml?branch=main&amp;style=flat-square&amp;logo=github&amp;label=CI&amp;color=2563EB"></a>
+  <a href="https://github.com/kodepapa/okfleet/actions/workflows/release-please.yml"><img alt="Release Please" src="https://img.shields.io/github/actions/workflow/status/kodepapa/okfleet/release-please.yml?branch=main&amp;style=flat-square&amp;logo=google&amp;label=release&amp;color=0EA5E9"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-2563EB?style=flat-square&amp;logo=python&amp;logoColor=white">
   <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache--2.0-2563EB?style=flat-square"></a>
   <img alt="Project status: beta" src="https://img.shields.io/badge/status-beta-0EA5E9?style=flat-square">
@@ -74,8 +74,8 @@ OKFleet provides that missing workbench. The deterministic core works without an
 OKFleet currently targets Python 3.11+ and is installed from source while the package is in beta.
 
 ```bash
-git clone https://github.com/kodepapa/okf-plugin.git
-cd okf-plugin
+git clone https://github.com/kodepapa/okfleet.git
+cd okfleet
 uv sync --locked --extra dev
 uv run okfleet doctor
 uv run okfleet
@@ -212,8 +212,8 @@ The registry and derived SQLite database live in platform-appropriate user direc
 Install the Claude Code plugin:
 
 ```text
-/plugin marketplace add kodepapa/okf-plugin
-/plugin install okf@okf-plugin
+/plugin marketplace add kodepapa/okfleet
+/plugin install okf@okfleet
 ```
 
 The repository also includes a Codex manifest at [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json) and read-only MCP wiring in [`.mcp.json`](.mcp.json). Contributor instructions are canonical in [`AGENTS.md`](AGENTS.md); [`CLAUDE.md`](CLAUDE.md) and the project-level Claude skill entries are symlinks to the same sources so the two agent environments cannot drift. The standalone helpers inside both skills remain self-contained and compatible with older Python installations.

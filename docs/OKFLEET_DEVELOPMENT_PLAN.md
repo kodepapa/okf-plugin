@@ -1082,13 +1082,12 @@ Suggested milestones:
 - `0.8.0`: MCP, CI/SARIF, cross-platform hardening, performance.
 - `1.0.0`: stable contracts and all P0/P1 definitions of done.
 
-Repository rename sequence:
+Repository identity:
 
-1. Ship at least one release from `okf-plugin` that announces OKFleet and keeps old install instructions working.
-2. Publish `okfleet` distribution and executable.
-3. Add Codex plugin manifest while retaining the Claude manifest.
-4. Rename the GitHub repository only after package/plugin links use redirect-safe URLs.
-5. Keep a compatibility note for `okf-plugin` search/install terms through 1.x.
+1. The canonical GitHub repository, Python distribution, executable, and toolkit identity are all `okfleet`.
+2. The Codex and Claude manifests both present the toolkit as OKFleet.
+3. The Claude plugin entry remains `okf`, matching the bundled skill namespace, while its marketplace is `okfleet`.
+4. Legacy repository URLs are supported only through GitHub's repository-rename redirects; new documentation uses the canonical URL.
 
 ## 21. Documentation set
 

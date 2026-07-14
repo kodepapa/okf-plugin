@@ -31,6 +31,6 @@ The web explorer has no authentication layer. Treat `--allow-remote` as an exper
 
 ## Reporting
 
-Do not include credentials, authenticated transcripts, or private bundle contents in a public issue. Use [GitHub private vulnerability reporting](https://github.com/kodepapa/okf-plugin/security/advisories/new) for suspected vulnerabilities. Include the affected command, version, platform, minimal sanitized reproduction, and whether the behavior occurred in read or staged-work mode.
+Do not include credentials, authenticated transcripts, or private bundle contents in a public issue. Use [GitHub private vulnerability reporting](https://github.com/kodepapa/okfleet/security/advisories/new) for suspected vulnerabilities. Include the affected command, version, platform, minimal sanitized reproduction, and whether the behavior occurred in read or staged-work mode.
 
 The maintainer will acknowledge a report within seven days, keep the reporter informed while a fix is developed, and coordinate disclosure after supported releases are available. If private reporting is unavailable, open a public issue containing no exploit details or private data and ask for a secure contact channel.

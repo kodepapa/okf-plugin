@@ -47,11 +47,11 @@ dev = [
 okfleet = "okfleet.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/kodepapa/okf-plugin"
-Repository = "https://github.com/kodepapa/okf-plugin"
-Changelog = "https://github.com/kodepapa/okf-plugin/blob/main/CHANGELOG.md"
-Documentation = "https://github.com/kodepapa/okf-plugin#readme"
-Issues = "https://github.com/kodepapa/okf-plugin/issues"
+Homepage = "https://github.com/kodepapa/okfleet"
+Repository = "https://github.com/kodepapa/okfleet"
+Changelog = "https://github.com/kodepapa/okfleet/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/kodepapa/okfleet#readme"
+Issues = "https://github.com/kodepapa/okfleet/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/okfleet"]

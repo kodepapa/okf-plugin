@@ -5,6 +5,7 @@ import os
 import re
 import sqlite3
 from collections.abc import Iterable
+from contextlib import suppress
 from pathlib import Path
 
 from platformdirs import user_data_path
@@ -22,13 +23,43 @@ def default_database_path() -> Path:
 
 class SearchDatabase:
     def __init__(self, path: Path | None = None) -> None:
+        private_parent = path is None and "OKFLEET_DATABASE" not in os.environ
         self.path = path or default_database_path()
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if self.path.is_symlink():
+            raise ValueError(f"refusing symlinked database path: {self.path}")
+        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if private_parent and os.name != "nt":
+            self.path.parent.chmod(0o700)
+        if not self.path.exists():
+            flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_BINARY", 0)
+            descriptor = os.open(self.path, flags, 0o600)
+            os.close(descriptor)
         self.connection = sqlite3.connect(self.path)
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA journal_mode = WAL")
         self._migrate()
+        self._harden_file_modes()
+
+    @classmethod
+    def open_reader(cls, path: Path) -> SearchDatabase:
+        """Open an independent read-only connection to an initialized database."""
+        if path.is_symlink():
+            raise ValueError(f"refusing symlinked database path: {path}")
+        database = cls.__new__(cls)
+        database.path = path
+        uri = f"{path.expanduser().resolve().as_uri()}?mode=ro"
+        database.connection = sqlite3.connect(uri, uri=True)
+        database.connection.row_factory = sqlite3.Row
+        database.connection.execute("PRAGMA query_only = ON")
+        return database
+
+    def _harden_file_modes(self) -> None:
+        if os.name == "nt":
+            return
+        for candidate in (self.path, Path(f"{self.path}-wal"), Path(f"{self.path}-shm")):
+            with suppress(FileNotFoundError):
+                candidate.chmod(0o600)
 
     def _migrate(self) -> None:
         self.connection.executescript(
@@ -95,6 +126,7 @@ class SearchDatabase:
 
     def close(self) -> None:
         self.connection.close()
+        self._harden_file_modes()
 
     def __enter__(self) -> SearchDatabase:
         return self

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Simplified the TUI into a focused two-pane library and document workspace with a compact
+  Spotlight search and an on-demand, responsive chat drawer.
+- Added canonical `CLAUDE.md` and Claude project-skill symlinks while keeping shared agent
+  instructions and skills single-sourced.
+- Hardened bundle reads and staged apply against symlink traversal and race paths.
+- Fixed threaded web search by using independent read-only SQLite connections per request.
+- Added an Apache 2.0 project license, typed-package marker, dependency automation, stronger
+  pre-commit checks, coverage enforcement, and distribution smoke tests.
+
 ## 0.5.0 - 2026-07-14
 
 - Introduced the OKFleet Python library, CLI, and Textual TUI.
@@ -13,3 +24,4 @@
 - Added explicit Git-backed remote caches, a read-only local web explorer, and an LSP server for diagnostics and internal-link navigation.
 - Added a compact OKFleet visual identity shared by the README and TUI terminal artwork.
 - Added manifest-driven Release Please automation for synchronized Python and plugin releases.
+- Reworked the TUI around Vim navigation, interactive Spotlight search, contextual keyboard help, and a narrow-terminal chat drawer.

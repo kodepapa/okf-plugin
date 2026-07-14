@@ -7,6 +7,7 @@ import io
 import json
 import os
 import re
+import stat
 import tempfile
 from collections import defaultdict, deque
 from collections.abc import Iterable
@@ -59,6 +60,28 @@ def render_concept(frontmatter: dict[str, Any], body: str) -> str:
     return f"---\n{stream.getvalue()}---\n\n{normalized_body}".rstrip() + "\n"
 
 
+def read_bytes_nofollow(path: Path) -> bytes:
+    """Read a regular file without dereferencing a leaf symlink."""
+    if path.is_symlink():
+        raise OSError(f"refusing to read symlink: {path}")
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise OSError(f"refusing to read non-regular file: {path}")
+        with os.fdopen(fd, "rb") as handle:
+            fd = -1
+            return handle.read()
+    finally:
+        if fd >= 0:
+            os.close(fd)
+
+
+def read_text_nofollow(path: Path) -> str:
+    """Read a regular UTF-8 file without dereferencing a leaf symlink."""
+    return read_bytes_nofollow(path).decode("utf-8")
+
+
 def concept_id(root: Path, path: Path) -> str:
     return path.relative_to(root).as_posix().removesuffix(".md")
 
@@ -66,26 +89,33 @@ def concept_id(root: Path, path: Path) -> str:
 def iter_markdown(root: Path, *, include_hidden: bool = False) -> Iterable[Path]:
     root = root.resolve()
     for directory, names, files in os.walk(root, followlinks=False):
+        current = Path(directory)
         names[:] = sorted(
             name
             for name in names
-            if name not in EXCLUDED_DIRS and (include_hidden or not name.startswith("."))
+            if name not in EXCLUDED_DIRS
+            and (include_hidden or not name.startswith("."))
+            and not (current / name).is_symlink()
         )
-        current = Path(directory)
         for name in sorted(files):
-            if name.endswith(".md") and (include_hidden or not name.startswith(".")):
-                yield current / name
+            path = current / name
+            if (
+                name.endswith(".md")
+                and (include_hidden or not name.startswith("."))
+                and not path.is_symlink()
+            ):
+                yield path
 
 
 def parse_concept(root: Path, path: Path) -> Concept:
     root = root.resolve()
-    path = path.resolve()
+    path = path.parent.resolve() / path.name
     try:
         path.relative_to(root)
     except ValueError as exc:
         raise ValueError(f"concept path escapes bundle root: {path}") from exc
     try:
-        source = path.read_text(encoding="utf-8")
+        source = read_text_nofollow(path)
     except UnicodeDecodeError as exc:
         return Concept(root, path, concept_id(root, path), None, "", "", "", str(exc))
     try:
@@ -180,12 +210,11 @@ def load_bundle(path: Path) -> Bundle:
             concepts[concept.concept_id] = concept
     version = None
     root_index = root / "index.md"
-    if root_index.exists():
-        try:
-            fm, _ = parse_frontmatter(root_index.read_text(encoding="utf-8"))
-            version = str((fm or {}).get("okf_version") or "") or None
-        except (OSError, ValueError):
-            pass
+    try:
+        fm, _ = parse_frontmatter(read_text_nofollow(root_index))
+        version = str((fm or {}).get("okf_version") or "") or None
+    except (OSError, ValueError):
+        pass
     return Bundle(root=root, concepts=concepts, indexes=indexes, logs=logs, version=version)
 
 
@@ -282,7 +311,7 @@ def validate_bundle(
                     )
     for index_path in bundle.indexes:
         try:
-            text = index_path.read_text(encoding="utf-8")
+            text = read_text_nofollow(index_path)
         except (OSError, UnicodeDecodeError) as exc:
             diagnostics.append(Diagnostic("OKF005", Severity.ERROR, str(exc), index_path, 1))
             continue
@@ -298,7 +327,7 @@ def validate_bundle(
             )
     for log_path in bundle.logs:
         try:
-            text = log_path.read_text(encoding="utf-8")
+            text = read_text_nofollow(log_path)
         except (OSError, UnicodeDecodeError) as exc:
             diagnostics.append(Diagnostic("OKF005", Severity.ERROR, str(exc), log_path, 1))
             continue
@@ -337,16 +366,13 @@ def build_directory_index(bundle: Bundle, directory: Path) -> str:
     )
     existing_descriptions: dict[str, str] = {}
     index_path = directory / "index.md"
-    if index_path.exists():
-        try:
-            existing = index_path.read_text(encoding="utf-8")
-            for match in re.finditer(
-                r"^\*\s*\[[^\]]*\]\(([^)]+)\)\s*(?:-\s*(.*))?$", existing, re.M
-            ):
-                if match.group(2):
-                    existing_descriptions[match.group(1)] = match.group(2).strip()
-        except OSError:
-            pass
+    try:
+        existing = read_text_nofollow(index_path)
+        for match in re.finditer(r"^\*\s*\[[^\]]*\]\(([^)]+)\)\s*(?:-\s*(.*))?$", existing, re.M):
+            if match.group(2):
+                existing_descriptions[match.group(1)] = match.group(2).strip()
+    except (OSError, UnicodeDecodeError):
+        pass
     for name in direct_children:
         url = f"{name}/index.md"
         suffix = f" - {existing_descriptions[url]}" if url in existing_descriptions else ""
@@ -357,12 +383,12 @@ def build_directory_index(bundle: Bundle, directory: Path) -> str:
     for concept_type in sorted(groups, key=str.casefold):
         sections.append(f"# {concept_type}\n\n" + "\n".join(groups[concept_type]))
     body = "\n\n".join(sections) + ("\n" if sections else "")
-    if directory == bundle.root and index_path.exists():
+    if directory == bundle.root:
         try:
-            fm, _ = parse_frontmatter(index_path.read_text(encoding="utf-8"))
+            fm, _ = parse_frontmatter(read_text_nofollow(index_path))
             if fm and "okf_version" in fm:
                 return render_concept({"okf_version": fm["okf_version"]}, body)
-        except ValueError:
+        except (OSError, ValueError):
             pass
     return body
 
@@ -375,7 +401,10 @@ def plan_indexes(bundle: Bundle) -> dict[Path, str]:
         if not rendered:
             continue
         path = directory / "index.md"
-        old = path.read_text(encoding="utf-8") if path.exists() else ""
+        try:
+            old = read_text_nofollow(path)
+        except (OSError, UnicodeDecodeError):
+            old = ""
         if old != rendered:
             changes[path] = rendered
     return changes

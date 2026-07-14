@@ -1,14 +1,16 @@
-# OKFleet: repository evolution and development plan
+# OKFleet: architecture and roadmap
 
-> Status: proposed architecture and execution plan  
-> Last updated: 2026-07-14  
-> Working product name: **OKFleet**  
-> Tagline: **The terminal workbench for a fleet of Open Knowledge Format bundles.**  
+> Status: implemented public beta; this document records the product contract and remaining roadmap
+> Last updated: 2026-07-14
+> Product name: **OKFleet**
+> Tagline: **The terminal workbench for a fleet of Open Knowledge Format bundles.**
 > Audience: maintainers, contributors, and coding agents working in this repository
 
-## 1. Executive decision
+The Python toolkit, CLI, TUI, provider integrations, skills, MCP server, web explorer, and LSP described here are present in the repository. Future-tense requirements below define the compatibility and safety contract for continued hardening; they are not a claim that the repository is still an empty scaffold.
 
-Evolve this repository from a pair of agent skills into **OKFleet**, a local-first OKF toolkit with five equally supported surfaces:
+## 1. Product contract
+
+OKFleet evolves the original pair of agent skills into a local-first OKF toolkit with five equally supported surfaces:
 
 1. A reusable Python library that is the single source of truth for parsing, validating, indexing, querying, and modifying OKF bundles.
 2. A composable `okfleet` CLI suitable for shell workflows, CI, pre-commit, and agents.
@@ -219,27 +221,27 @@ The original post-v1 scope was implemented early so the repository can be exerci
 
 ### 7.1 Layout
 
-The default wide layout uses three panes plus a status/footer area:
+The default layout keeps only the library and current document visible. Chat is an on-demand drawer, which avoids compressing the reading surface while remaining one keypress away:
 
 ```text
-┌─ OKFleet ────────────────────────────────────────────────────────────────┐
-│ LOCAL / FLEET       │ Concept / Health / Graph     │ Chat / Inspector   │
-│                     │                              │                    │
-│ ▾ local repo        │ # Net Revenue                │ CODEX · READ        │
-│   ▾ metrics         │                              │                    │
-│     net_revenue     │ Rendered markdown...         │ You: How is this…   │
-│   ▾ tables          │                              │ Agent: ...          │
-│ ▾ global            │ Links · Backlinks · Source  │ tool activity...    │
-│   warehouse         │                              │                    │
-├─────────────────────┴──────────────────────────────┴────────────────────┤
-│ / search  c chat  v validate  d diff  Ctrl+P commands  ? help          │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─ OKFleet · Open Knowledge Format Workbench ─────────────────────┐
+│ LIBRARY             │ Document        Checks        Links       │
+│                     │                                          │
+│ ▾ local             │ # Net Revenue                            │
+│   ▾ metrics         │                                          │
+│     net_revenue     │ Rendered Markdown and source metadata…   │
+│   ▾ tables          │                                          │
+│ ▾ fleet             │                                          │
+│   warehouse         │                                          │
+├─────────────────────┴──────────────────────────────────────────┤
+│ NORMAL   / search   c chat   H/L panes   1/2/3 views   ? help │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 Responsive behavior:
 
-- At medium width, Inspector/Chat becomes a toggled drawer.
-- At narrow width, screens become tabs rather than squeezed columns.
+- Chat is hidden by default and opens as a right-side drawer with `c`; `Esc` closes it and restores browse focus.
+- At 88 columns and below, the drawer becomes full-width while the explorer remains mounted behind it.
 - Markdown source is always available when rich rendering is unsuitable.
 - `NO_COLOR`, terminal theme detection, reduced motion, and screen-reader mode are respected.
 
@@ -251,7 +253,7 @@ Responsive behavior:
 | Fleet | Local discoveries, global registry, collections, and aggregate health. |
 | Bundle | Concept tree, bundle metadata, Git state, health, and recent changes. |
 | Concept | Rendered body, frontmatter, source, links, backlinks, and citations. |
-| Search | Query input, filters, ranked results, snippets, and selected scope. |
+| Search | Spotlight-style modal with bundle/concept results, snippets, current/all scope, and direct navigation. |
 | Health | Grouped diagnostics, stale/orphaned concepts, fixes, and export. |
 | Graph | Focused neighborhood or bundle graph with list fallback and exports. |
 | Chat | Provider-neutral transcript, tools/activity, citations, usage, and cancel/resume. |
@@ -263,22 +265,25 @@ Responsive behavior:
 | Key | Action |
 |---|---|
 | `Ctrl+P` | Open command palette. |
-| `/` | Search current scope. |
-| `g l` | Go to local bundles. |
-| `g f` | Go to fleet/global bundles. |
+| `/` / `Ctrl+K` | Open Spotlight search across local and registered bundles. |
+| `j` / `k` | Move the tree/result cursor or scroll rendered content. |
+| `h` / `l` | Collapse/expand tree nodes or scroll horizontally. |
+| `g` / `G` | Jump to the first/top or last/bottom item. |
+| `Ctrl+U` / `Ctrl+D` | Move one page up/down. |
+| `H` / `L` | Focus the previous/next pane. |
 | `Enter` | Open selected item. |
-| `Backspace` | Navigate back. |
-| `Tab` / `Shift+Tab` | Move between panes. |
-| `c` | Open or focus chat. |
-| `w` | Start staged work session from a bundle screen. |
+| `Tab` / `Shift+Tab` | Move between controls; in Spotlight, enter/leave the result list. |
+| `b` / `c` | Focus bundle browsing or chat. |
+| `1` / `2` / `3` | Open Concept, Health, or Graph. |
 | `v` | Validate current bundle/concept. |
 | `d` | Show current or staged diff. |
 | `r` | Refresh current scope. |
-| `e` | Open source in `$EDITOR`. |
+| `Esc` | Return to browse mode or close the topmost modal. |
+| `Ctrl+G` | Cancel the active provider turn. |
 | `?` | Contextual help. |
 | `q` | Quit or close the topmost modal. |
 
-All keys must be configurable. Destructive or mutating actions must not be single unconfirmed keystrokes.
+Printable navigation bindings are disabled inside inputs, which remain in insert mode. Destructive or mutating actions are not single unconfirmed keystrokes.
 
 ### 7.4 Useful deterministic developer tools
 

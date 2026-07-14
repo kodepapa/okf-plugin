@@ -15,12 +15,14 @@ The release pull request keeps these files synchronized:
 
 The current version starts at `0.5.0`. Package-manager publication is intentionally separate from Release Please; the workflow creates the version commit, tag, and GitHub Release but does not publish to PyPI.
 
+This repository was bootstrapped before its first tag. `release-please-config.json` therefore pins the last pre-automation commit with `bootstrap-sha`; Release Please will collect only later Conventional Commits for the first automated release. Remove `bootstrap-sha` after that release PR has been merged and tagged.
+
 ## Normal release flow
 
 1. Merge changes into `main` using Conventional Commit subjects.
 2. The `Release Please` workflow creates or updates one release pull request.
 3. Review its version bump, changelog, and synchronized plugin versions.
-4. Ensure CI passes, then merge the release pull request.
+4. Ensure CI passes, including the clean wheel installation and distribution smoke test, then merge the release pull request.
 5. Release Please creates the `vX.Y.Z` tag and corresponding GitHub Release.
 
 Use `fix:` for patches, `feat:` for features, and `feat!:` or a `BREAKING CHANGE:` footer for breaking changes. Python repositories also treat `docs:` changes as releasable units.

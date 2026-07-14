@@ -3,6 +3,7 @@ from __future__ import annotations
 import builtins
 import os
 import re
+import stat
 import tomllib
 import uuid
 from collections.abc import Iterable
@@ -12,7 +13,13 @@ from typing import Any
 
 from platformdirs import user_config_path
 
-from .core import EXCLUDED_DIRS, iter_markdown, parse_frontmatter
+from .core import (
+    EXCLUDED_DIRS,
+    atomic_write,
+    iter_markdown,
+    parse_frontmatter,
+    read_text_nofollow,
+)
 from .models import BundleRef
 
 
@@ -34,6 +41,7 @@ def _quote(value: str) -> str:
 
 class BundleRegistry:
     def __init__(self, path: Path | None = None) -> None:
+        self._private_parent = path is None and "OKFLEET_CONFIG" not in os.environ
         self.path = (path or default_config_path()).expanduser()
         self.version = 1
         self.ui: dict[str, Any] = {"provider": "codex", "theme": "system"}
@@ -55,8 +63,7 @@ class BundleRegistry:
     def load(self) -> None:
         if not self.path.exists():
             return
-        with self.path.open("rb") as handle:
-            data = tomllib.load(handle)
+        data = tomllib.loads(read_text_nofollow(self.path))
         self.version = int(data.get("version", 1))
         self.ui.update(data.get("ui", {}))
         self.discovery.update(data.get("discovery", {}))
@@ -132,10 +139,12 @@ class BundleRegistry:
                     f"path = {_quote(str(bundle.path))}",
                 ]
             )
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = self.path.with_suffix(".tmp")
-        temporary.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        os.replace(temporary, self.path)
+        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if self._private_parent and os.name != "nt":
+            self.path.parent.chmod(0o700)
+        atomic_write(self.path, "\n".join(lines) + "\n")
+        if os.name != "nt":
+            self.path.chmod(0o600)
 
     def list(self) -> list[BundleRef]:
         return [replace(item, available=item.path.is_dir()) for item in self._bundles]
@@ -269,7 +278,7 @@ def _has_concept(path: Path, max_files: int = 50) -> bool:
             continue
         checked += 1
         try:
-            frontmatter, _ = parse_frontmatter(markdown.read_text(encoding="utf-8"))
+            frontmatter, _ = parse_frontmatter(read_text_nofollow(markdown))
             if str((frontmatter or {}).get("type") or "").strip():
                 return True
         except (OSError, UnicodeDecodeError, ValueError):
@@ -281,12 +290,17 @@ def _has_concept(path: Path, max_files: int = 50) -> bool:
 
 def _root_marker(path: Path) -> bool:
     index = path / "index.md"
-    if not index.exists():
-        return False
     try:
-        frontmatter, _ = parse_frontmatter(index.read_text(encoding="utf-8"))
+        frontmatter, _ = parse_frontmatter(read_text_nofollow(index))
         return bool((frontmatter or {}).get("okf_version"))
     except (OSError, UnicodeDecodeError, ValueError):
+        return False
+
+
+def _has_regular_index(path: Path) -> bool:
+    try:
+        return stat.S_ISREG((path / "index.md").lstat().st_mode)
+    except OSError:
         return False
 
 
@@ -308,14 +322,17 @@ def discover_bundles(
         names[:] = sorted(
             name
             for name in names
-            if name not in excluded and not name.startswith(".") and depth < max_depth
+            if name not in excluded
+            and not name.startswith(".")
+            and depth < max_depth
+            and not (current / name).is_symlink()
         )
         if visited > max_directories:
             break
         if _root_marker(current):
             candidates.append((current, "high", "root index declares okf_version"))
             names[:] = []
-        elif (current / "index.md").exists() and _has_concept(current):
+        elif _has_regular_index(current) and _has_concept(current):
             candidates.append((current, "medium", "index and typed concepts detected"))
             names[:] = []
     if not candidates and _has_concept(root):

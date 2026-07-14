@@ -6,7 +6,7 @@ OKFleet is both an installable Python OKF toolkit and a distribution repository 
 
 ## Code discovery
 
-Prefer the codebase-memory MCP graph in this order:
+When the codebase-memory MCP graph tools are available, prefer them in this order:
 
 1. `search_graph`
 2. `trace_path`
@@ -14,7 +14,9 @@ Prefer the codebase-memory MCP graph in this order:
 4. `query_graph`
 5. `get_architecture`
 
-Use text search for literal messages, config, docs, and generated artifacts, or after the graph is insufficient.
+If the graph tools are unavailable or return insufficient results, fall back to `rg` for
+code discovery and `rg --files` for file discovery. Use text search directly for literal
+messages, config, docs, and generated artifacts.
 
 ## Architecture rules
 
@@ -29,14 +31,14 @@ Use text search for literal messages, config, docs, and generated artifacts, or 
 ## Verification
 
 ```bash
-uv sync --extra dev
+uv sync --locked --extra dev
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy src
-uv run pytest
+uv run pytest --cov=okfleet
 uv run python tools/verify_generated.py
 uv build
+uv run python tools/verify_distribution.py dist
 ```
 
 Live provider tests require explicit user opt-in and authenticated local CLIs.
-

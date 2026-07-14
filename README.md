@@ -11,6 +11,7 @@
   <a href="https://github.com/kodepapa/okf-plugin/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/kodepapa/okf-plugin/ci.yml?branch=main&amp;style=flat-square&amp;logo=github&amp;label=CI&amp;color=2563EB"></a>
   <a href="https://github.com/kodepapa/okf-plugin/actions/workflows/release-please.yml"><img alt="Release Please" src="https://img.shields.io/github/actions/workflow/status/kodepapa/okf-plugin/release-please.yml?branch=main&amp;style=flat-square&amp;logo=google&amp;label=release&amp;color=0EA5E9"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-2563EB?style=flat-square&amp;logo=python&amp;logoColor=white">
+  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache--2.0-2563EB?style=flat-square"></a>
   <img alt="Project status: beta" src="https://img.shields.io/badge/status-beta-0EA5E9?style=flat-square">
   <img alt="Local first" src="https://img.shields.io/badge/local--first-yes-0284C7?style=flat-square&amp;logo=sqlite&amp;logoColor=white">
   <img alt="MCP compatible" src="https://img.shields.io/badge/MCP-compatible-0369A1?style=flat-square">
@@ -75,7 +76,7 @@ OKFleet currently targets Python 3.11+ and is installed from source while the pa
 ```bash
 git clone https://github.com/kodepapa/okf-plugin.git
 cd okf-plugin
-uv sync --extra dev
+uv sync --locked --extra dev
 uv run okfleet doctor
 uv run okfleet
 ```
@@ -164,13 +165,18 @@ The web explorer binds to `127.0.0.1:8765` by default. It has no mutation endpoi
 
 ## TUI command map
 
+OKFleet uses navigation and insert modes: Vim keys operate in trees, results, and rendered documents, while every text input keeps normal typing behavior. `/` opens a centered Spotlight search across local and registered bundles; results jump directly to their bundle or concept. The default workspace stays focused on library and document; `c` opens chat as a drawer, which expands to full width on narrow terminals, and `Esc` returns to the explorer.
+
 | Key | Action | Key | Action |
 |---|---|---|---|
-| `/` | Search loaded bundles | `c` | Focus chat |
+| `j` / `k` | Move or scroll | `h` / `l` | Collapse/expand or scroll |
+| `g` / `G` | First/top or last/bottom | `Ctrl+U/D` | Page up/down |
+| `H` / `L` | Previous/next pane | `1` / `2` / `3` | Concept/Health/Graph |
+| `/` or `Ctrl+K` | Spotlight search | `c` / `b` | Chat/Browse |
 | `v` | Validation and health | `d` | Toggle staged diff |
-| `Esc` | Cancel provider turn | `Ctrl+X` | Discard staged snapshot |
+| `Esc` | Return to browse mode | `Ctrl+G` | Cancel provider turn |
 | `r` | Refresh and reindex | `Ctrl+P` | Command palette |
-| `?` | Help | `q` | Quit |
+| `?` | Keyboard help | `q` | Quit |
 
 ## Architecture
 
@@ -210,7 +216,9 @@ Install the Claude Code plugin:
 /plugin install okf@okf-plugin
 ```
 
-The repository also includes a Codex manifest at [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json) and read-only MCP wiring in [`.mcp.json`](.mcp.json). The standalone helpers inside both skills remain self-contained and compatible with older Python installations.
+The repository also includes a Codex manifest at [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json) and read-only MCP wiring in [`.mcp.json`](.mcp.json). Contributor instructions are canonical in [`AGENTS.md`](AGENTS.md); [`CLAUDE.md`](CLAUDE.md) and the project-level Claude skill entries are symlinks to the same sources so the two agent environments cannot drift. The standalone helpers inside both skills remain self-contained and compatible with older Python installations.
+
+The skills work when the plugin is installed on its own. The MCP entry invokes the `okfleet` executable, so install the Python toolkit on `PATH` as well before enabling that server; a source checkout can use `uv tool install .`. Run `okfleet doctor` to verify the local contract.
 
 ## Privacy and safety
 
@@ -222,7 +230,6 @@ The repository also includes a Codex manifest at [`.codex-plugin/plugin.json`](.
 - No command automatically commits, pushes, opens a pull request, or grants unrestricted shell access.
 
 Read the full [security and privacy model](docs/SECURITY.md).
-
 ## Documentation
 
 | Document | What it covers |
@@ -249,12 +256,14 @@ Read the full [security and privacy model](docs/SECURITY.md).
 ## Development
 
 ```bash
-uv sync --extra dev
+uv sync --locked --extra dev
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy src
-uv run pytest
+uv run pytest --cov=okfleet
+uv run python tools/verify_generated.py
 uv build
+uv run python tools/verify_distribution.py dist
 ```
 
 The test suite covers the core, CLI, provider protocols, staged writes, TUI, web service, LSP, importers, policies, and compatibility helpers. CI runs on macOS and Linux across Python 3.11–3.13.
@@ -265,4 +274,4 @@ Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.
 
 ## License
 
-A repository-wide license has not yet been declared. The vendored OKF v0.1 specification in `skills/okf-author/references/spec.md` retains its upstream Apache 2.0 license. Choose and add a project license before public distribution.
+OKFleet is licensed under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for attribution information.

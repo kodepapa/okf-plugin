@@ -1,6 +1,35 @@
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: destroyed-symlinks
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
   - repo: local
     hooks:
+      - id: okfleet-ruff
+        name: Ruff lint
+        entry: uv run ruff check --force-exclude
+        language: system
+        types: [python]
+      - id: okfleet-format
+        name: Ruff format
+        entry: uv run ruff format --check --force-exclude
+        language: system
+        types: [python]
+      - id: okfleet-mypy
+        name: Mypy
+        entry: uv run mypy src
+        language: system
+        pass_filenames: false
       - id: okfleet-demo-validate
         name: Validate OKFleet demo bundle
         entry: uv run okfleet validate examples/demo-bundle

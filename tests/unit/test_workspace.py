@@ -4,7 +4,14 @@ from pathlib import Path
 
 import pytest
 
-from okfleet.workspace import StagedWorkspace
+from okfleet.workspace import StagedWorkspace, tree_hashes
+
+
+def _symlink_or_skip(link: Path, target: Path) -> None:
+    try:
+        link.symlink_to(target, target_is_directory=target.is_dir())
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"symlinks are unavailable on this platform: {exc}")
 
 
 def test_staged_workspace_diff_and_apply(bundle_path: Path) -> None:
@@ -38,3 +45,42 @@ def test_staged_workspace_preserves_binary_assets(bundle_path: Path) -> None:
         assert changeset.changes[0].diff == "Binary file changed: diagram.png\n"
         workspace.apply()
     assert asset.read_bytes() == updated
+
+
+def test_staged_workspace_rejects_source_symlinks(bundle_path: Path, tmp_path: Path) -> None:
+    external = tmp_path / "external.md"
+    external.write_text("outside\n", encoding="utf-8")
+    _symlink_or_skip(bundle_path / "external.md", external)
+
+    with pytest.raises(ValueError, match="symlink"):
+        StagedWorkspace(bundle_path)
+    with pytest.raises(ValueError, match="symlink"):
+        tree_hashes(bundle_path)
+
+
+def test_apply_rejects_raced_source_parent_symlink(
+    bundle_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+
+    with StagedWorkspace(bundle_path) as workspace:
+        staged = workspace.root / "docs/new.md"
+        staged.parent.mkdir()
+        staged.write_text(
+            "---\ntype: Note\ntitle: New\ndescription: Staged note.\n---\n\nContent.\n",
+            encoding="utf-8",
+        )
+        original_changeset = workspace.changeset
+
+        def changeset_with_race():
+            changeset = original_changeset()
+            _symlink_or_skip(bundle_path / "docs", outside)
+            return changeset
+
+        monkeypatch.setattr(workspace, "changeset", changeset_with_race)
+
+        with pytest.raises(ValueError, match="symlink"):
+            workspace.apply()
+
+    assert not (outside / "new.md").exists()

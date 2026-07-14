@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from rich.text import Text
 
-PLAIN_MARK = "  ●━━━━▶\n ●━━━━━━▶\n  ●━━━━▶"
+PLAIN_MARK = "●━━━▶"
 
 
 def brand_text() -> Text:
-    """Return the compact fleet mark and wordmark for terminal surfaces."""
-    brand = Text()
-    brand.append("  ●━━━━▶\n", style="#60a5fa")
-    brand.append(" ●━━━━━━▶", style="#2563eb")
-    brand.append("  OKFleet\n", style="bold #38bdf8")
-    brand.append("  ●━━━━▶", style="#0ea5e9")
+    """Return the single-line fleet mark and wordmark for terminal chrome."""
+    brand = Text(PLAIN_MARK, style="bold #3b82f6")
+    brand.append("  OK", style="bold #60a5fa")
+    brand.append("Fleet", style="bold #38bdf8")
     return brand

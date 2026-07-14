@@ -2,7 +2,7 @@
 
 Read [docs/OKFLEET_DEVELOPMENT_PLAN.md](docs/OKFLEET_DEVELOPMENT_PLAN.md) and [AGENTS.md](AGENTS.md) before changing architecture or provider boundaries.
 
-Use `uv sync --extra dev` to create the development environment. Every change should include focused tests and pass the commands listed in `AGENTS.md`.
+Use `uv sync --locked --extra dev` to create the development environment, then run `uv run pre-commit install` once per checkout. Every change should include focused tests and pass the commands listed in `AGENTS.md`.
 
 Provider adapters must be testable from sanitized protocol fixtures without a live account. Never commit credentials, raw authenticated transcripts, or user bundle content.
 

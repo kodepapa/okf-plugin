@@ -9,12 +9,20 @@ from okfleet.core import (
     graph_neighborhood,
     load_bundle,
     move_concept,
+    parse_concept,
     parse_frontmatter,
     plan_indexes,
     safe_concept_path,
     validate_bundle,
 )
 from okfleet.models import Severity
+
+
+def _symlink_or_skip(link: Path, target: Path) -> None:
+    try:
+        link.symlink_to(target, target_is_directory=target.is_dir())
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"symlinks are unavailable on this platform: {exc}")
 
 
 def test_load_links_validate_and_graph(bundle_path: Path) -> None:
@@ -74,3 +82,51 @@ def test_safe_concept_path_rejects_escape(bundle_path: Path, raw: str) -> None:
 def test_frontmatter_must_be_mapping() -> None:
     with pytest.raises(ValueError, match="mapping"):
         parse_frontmatter("---\n- one\n- two\n---\nbody")
+
+
+def test_load_bundle_skips_symlinked_concept_files(bundle_path: Path, tmp_path: Path) -> None:
+    external = tmp_path / "external-concept.md"
+    external.write_text(
+        "---\ntype: Secret\ntitle: External\ndescription: Must not be read.\n---\n\nOutside.\n",
+        encoding="utf-8",
+    )
+    external_link = bundle_path / "metrics/external.md"
+    _symlink_or_skip(external_link, external)
+    alias = bundle_path / "metrics/revenue-alias.md"
+    _symlink_or_skip(alias, bundle_path / "metrics/revenue.md")
+
+    bundle = load_bundle(bundle_path)
+
+    assert set(bundle.concepts) == {"metrics/revenue", "tables/orders"}
+    with pytest.raises(OSError, match="symlink"):
+        parse_concept(bundle_path, external_link)
+
+
+def test_load_bundle_skips_symlinked_directories(bundle_path: Path, tmp_path: Path) -> None:
+    external = tmp_path / "external-bundle-section"
+    external.mkdir()
+    (external / "leaked.md").write_text(
+        "---\ntype: Secret\ntitle: Leaked\ndescription: Must not be read.\n---\n",
+        encoding="utf-8",
+    )
+    _symlink_or_skip(bundle_path / "linked", external)
+
+    bundle = load_bundle(bundle_path)
+
+    assert "linked/leaked" not in bundle.concepts
+
+
+def test_symlinked_root_index_is_not_a_bundle_marker(bundle_path: Path, tmp_path: Path) -> None:
+    external = tmp_path / "external-index.md"
+    external.write_text('---\nokf_version: "999"\n---\n\n# External\n', encoding="utf-8")
+    root_index = bundle_path / "index.md"
+    root_index.unlink()
+    _symlink_or_skip(root_index, external)
+
+    bundle = load_bundle(bundle_path)
+
+    assert bundle.version is None
+    assert root_index not in bundle.indexes
+    planned = plan_indexes(bundle)
+    assert root_index in planned
+    assert "999" not in planned[root_index]

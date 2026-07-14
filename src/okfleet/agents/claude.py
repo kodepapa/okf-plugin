@@ -39,7 +39,6 @@ class ClaudeProvider(AgentProvider):
         binary = self.binary_path()
         if not binary:
             raise ProviderError("claude executable not found")
-        prompt = bootstrap_prompt(session.mode, session.scope) + "\n\nUser request:\n" + message
         command = [
             binary,
             "-p",
@@ -64,7 +63,7 @@ class ClaudeProvider(AgentProvider):
             command.extend(["--permission-mode", "plan", "--tools", ""])
         else:
             command.extend(["--permission-mode", "plan", "--tools", "Read,Glob,Grep"])
-        command.append(prompt)
+        command.append(message)
         return command
 
     @staticmethod

@@ -1,0 +1,58 @@
+name: Bug report
+description: Report a reproducible OKFleet defect
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve OKFleet. Do not include credentials, private bundle content, or authenticated provider transcripts. Report security issues through the private advisory link in `docs/SECURITY.md`.
+  - type: input
+    id: version
+    attributes:
+      label: OKFleet version
+      placeholder: Output of `okfleet --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - TUI
+        - CLI
+        - Python API
+        - MCP
+        - Web
+        - LSP
+        - Codex provider
+        - Claude Code provider
+        - Skills or plugin packaging
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Use a sanitized example bundle and include the exact command or keys.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: macOS/Linux, terminal, Python version, provider CLI version if relevant
+    validations:
+      required: true

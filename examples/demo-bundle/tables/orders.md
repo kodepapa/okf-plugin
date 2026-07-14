@@ -16,4 +16,3 @@ The canonical order fact used by [Net Revenue](../metrics/net-revenue.md).
 | `gross_revenue` | NUMERIC | Recognized gross revenue. |
 | `refund_amount` | NUMERIC | Refunded amount. |
 | `discount_amount` | NUMERIC | Discount amount. |
-

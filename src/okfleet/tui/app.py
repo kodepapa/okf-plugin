@@ -9,13 +9,11 @@ from textual import events, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.widget import Widget
 from textual.widgets import (
     Button,
-    Footer,
-    Header,
     Input,
     Label,
-    Markdown,
     Select,
     Static,
     TabbedContent,
@@ -39,44 +37,48 @@ from ..models import (
 from ..registry import BundleRegistry, discover_bundles
 from ..search import SearchDatabase
 from ..workspace import StagedWorkspace
+from .screens import KeyboardHelp, SearchSelection, SpotlightSearch
+from .widgets import VimMarkdown, VimTree
 
 
 class OKFleetApp(App[None]):
     TITLE = "OKFleet"
     SUB_TITLE = "Open Knowledge Format workbench"
+    CSS_PATH = "okfleet.tcss"
 
-    CSS = """
-    Screen { layout: vertical; }
-    #body { height: 1fr; }
-    #sidebar { width: 30; min-width: 22; border-right: solid $primary; }
-    #main { width: 1fr; }
-    #inspector { width: 42; min-width: 30; border-left: solid $primary; }
-    #bundle-tree { height: 1fr; }
-    #brand { height: 4; padding: 0 1; margin-top: 1; }
-    #scope-label { height: auto; padding: 0 1; color: $text-muted; }
-    #search-input { margin: 0 1; }
-    #tabs { height: 1fr; }
-    TabPane { padding: 1 2; overflow: auto; }
-    #chat-transcript { height: 1fr; overflow-y: auto; padding: 1; }
-    #chat-input { margin: 0 1; }
-    #chat-controls { height: auto; padding: 0 1; }
-    #provider-select { width: 16; }
-    #mode-select { width: 18; }
-    #activity { height: 4; color: $text-muted; padding: 0 1; }
-    #diff { height: 12; overflow: auto; padding: 1; border-top: solid $secondary; }
-    #apply-button { margin: 0 1 1 1; width: 1fr; }
-    .hidden { display: none; }
-    """
+    _NAVIGATION_ACTIONS = frozenset(
+        {
+            "search",
+            "focus_browse",
+            "focus_chat",
+            "focus_previous_pane",
+            "focus_next_pane",
+            "show_tab",
+            "validate",
+            "refresh",
+            "show_diff",
+            "help",
+            "quit",
+        }
+    )
 
     BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         Binding("ctrl+p", "command_palette", "Commands", show=True),
-        Binding("slash", "focus_search", "Search", show=True),
+        Binding("slash", "search", "Search", show=True),
+        Binding("ctrl+k", "global_search", "Search", show=False, priority=True),
+        Binding("b", "focus_browse", "Browse", show=True),
         Binding("c", "focus_chat", "Chat", show=True),
+        Binding("H", "focus_previous_pane", "Pane ←", show=True),
+        Binding("L", "focus_next_pane", "Pane →", show=True),
+        Binding("1", "show_tab('concept-tab')", "Concept", show=False),
+        Binding("2", "show_tab('health-tab')", "Health", show=False),
+        Binding("3", "show_tab('graph-tab')", "Graph", show=False),
         Binding("v", "validate", "Validate", show=True),
         Binding("r", "refresh", "Refresh", show=True),
         Binding("d", "show_diff", "Diff", show=True),
         Binding("ctrl+x", "discard_work", "Discard staged", show=False),
-        Binding("escape", "cancel_chat", "Cancel turn", show=False),
+        Binding("ctrl+g", "cancel_chat", "Cancel turn", show=False),
+        Binding("escape", "normal_mode", "Browse mode", show=False),
         Binding("question_mark", "help", "Help", show=True),
         Binding("q", "quit", "Quit", show=True),
     ]
@@ -99,28 +101,42 @@ class OKFleetApp(App[None]):
         self.workspace: StagedWorkspace | None = None
         self.changeset: ChangeSet | None = None
         self._fleet_temp: tempfile.TemporaryDirectory[str] | None = None
+        self._narrow = False
+        self._chat_open = False
+        self._search_index_errors: dict[str, str] = {}
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
+        with Horizontal(id="topbar"):
+            yield Static(brand_text(), id="brand")
+            yield Static("OPEN KNOWLEDGE FORMAT WORKBENCH", id="product-label")
+            yield Static("NORMAL", id="mode-indicator")
         with Horizontal(id="body"):
             with Vertical(id="sidebar"):
-                yield Static(brand_text(), id="brand")
-                yield Label("LOCAL / FLEET", id="scope-label")
-                yield Tree("Bundles", id="bundle-tree")
-            with Vertical(id="main"):
-                yield Input(
-                    placeholder="Search concepts (type:Metric tag:finance)", id="search-input"
-                )
-                with TabbedContent(id="tabs"):
-                    with TabPane("Concept", id="concept-tab"):
-                        yield Markdown("# Select a concept", id="concept-view")
-                    with TabPane("Search", id="search-tab"):
-                        yield Markdown("Enter a query above.", id="search-results")
-                    with TabPane("Health", id="health-tab"):
-                        yield Markdown("Select a bundle.", id="health-view")
-                    with TabPane("Graph", id="graph-tab"):
-                        yield Markdown("Select a bundle or concept.", id="graph-view")
-            with Vertical(id="inspector"):
+                with Horizontal(id="library-header"):
+                    yield Static("LIBRARY", id="library-title")
+                    yield Static("0 bundles", id="library-count")
+                yield Label("LOCAL + GLOBAL", id="scope-label")
+                yield VimTree("Bundles", id="bundle-tree")
+            with Vertical(id="main"), TabbedContent(id="tabs"):
+                with TabPane("Document", id="concept-tab"):
+                    yield VimMarkdown(
+                        "# Your OKF library\n\nChoose a bundle from the library, or press `/` "
+                        "to jump directly to knowledge.",
+                        id="concept-view",
+                    )
+                with TabPane("Checks", id="health-tab"):
+                    yield VimMarkdown(
+                        "# Checks\n\nSelect a bundle to inspect its health.", id="health-view"
+                    )
+                with TabPane("Links", id="graph-tab"):
+                    yield VimMarkdown(
+                        "# Links\n\nSelect a bundle or concept to inspect relationships.",
+                        id="graph-view",
+                    )
+            with Vertical(id="chat-drawer", classes="hidden"):
+                with Horizontal(id="chat-header"):
+                    yield Static("CHAT", id="chat-title")
+                    yield Static("Esc close", id="chat-close-hint")
                 with Horizontal(id="chat-controls"):
                     yield Select(
                         [("Codex", "codex"), ("Claude Code", "claude")],
@@ -134,9 +150,10 @@ class OKFleetApp(App[None]):
                         id="mode-select",
                         allow_blank=False,
                     )
-                yield Markdown(self.chat_transcript, id="chat-transcript")
+                yield VimMarkdown(self.chat_transcript, id="chat-transcript")
                 yield Static("Ready", id="activity")
                 yield Input(placeholder="Ask OKFleet…", id="chat-input")
+                yield Static("Enter send  ·  Ctrl-G cancel  ·  Work stays staged", id="chat-hints")
                 yield Static("", id="diff", classes="hidden")
                 yield Button(
                     "Apply staged changes",
@@ -145,34 +162,55 @@ class OKFleetApp(App[None]):
                     disabled=True,
                     classes="hidden",
                 )
-        yield Footer()
+        yield Static(
+            "NORMAL   / search   c chat   H/L panes   1/2/3 views   ? help",
+            id="status-bar",
+        )
 
     def on_mount(self) -> None:
         self.refresh_tree()
-        self.query_one("#bundle-tree", Tree).root.expand()
+        tree = self.query_one("#bundle-tree", VimTree)
+        tree.show_root = False
+        tree.root.expand()
+        tree.focus()
 
     def on_resize(self, event: events.Resize) -> None:
-        self.query_one("#inspector", Vertical).display = event.size.width > 75
+        self._narrow = event.size.width <= 88
+        drawer = self.query_one("#chat-drawer", Vertical)
+        drawer.set_class(self._narrow, "full-screen")
 
     def refresh_tree(self) -> None:
-        tree = self.query_one("#bundle-tree", Tree)
+        tree = self.query_one("#bundle-tree", VimTree)
         tree.clear()
         local = discover_bundles(
             self.start_path, max_depth=int(self.registry.discovery.get("max_depth", 5))
         )
         global_refs = self.registry.list()
-        self.fleet_refs = global_refs
         self.refs = local + [
             item for item in global_refs if item.path not in {ref.path for ref in local}
         ]
+        self.fleet_refs = self.refs
+        tree.root.add_leaf("ALL KNOWLEDGE", data=("fleet",))
         local_node = tree.root.add("LOCAL", expand=True)
         for ref in local:
             local_node.add(f"{ref.alias}  [{ref.confidence}]", data=("bundle", ref))
-        fleet_node = tree.root.add("FLEET", data=("fleet",), expand=True)
+        fleet_node = tree.root.add("GLOBAL", expand=True)
         for ref in global_refs:
             label = ref.alias if ref.available else f"{ref.alias}  [missing]"
             fleet_node.add(label, data=("bundle", ref), allow_expand=ref.available)
         tree.root.expand()
+        self.query_one("#library-count", Static).update(f"{len(self.refs)} bundles")
+        self._index_search_refs()
+
+    def _index_search_refs(self) -> None:
+        self._search_index_errors = {}
+        for ref in self.refs:
+            if not ref.available:
+                continue
+            try:
+                self.database.index_bundle(ref, load_bundle(ref.path))
+            except Exception as exc:
+                self._search_index_errors[ref.id] = str(exc)
 
     def _populate_concepts(self, node: Any, ref: BundleRef) -> None:
         if node.children:
@@ -220,8 +258,11 @@ class OKFleetApp(App[None]):
             self.selected_bundle = None
             self.selected_concept_id = None
             self.chat_session = None
-            self.query_one("#scope-label", Label).update("FLEET · read-only")
-            self.query_one("#concept-view", Markdown).update(
+            mode_select = self.query_one("#mode-select", Select)
+            mode_select.value = "read"
+            mode_select.disabled = True
+            self.query_one("#scope-label", Label).update("ALL KNOWLEDGE · READ ONLY")
+            self.query_one("#concept-view", VimMarkdown).update(
                 "# Fleet\n\nAsk read-only questions across registered bundles. "
                 "Answers must use bundle-qualified citations."
             )
@@ -242,8 +283,11 @@ class OKFleetApp(App[None]):
         self.selected_bundle = load_bundle(ref.path)
         self.selected_concept_id = None
         self.database.index_bundle(ref, self.selected_bundle)
-        self.query_one("#scope-label", Label).update(f"{ref.alias}\n{ref.path}")
-        self.query_one("#concept-view", Markdown).update(
+        self.query_one("#mode-select", Select).disabled = False
+        self.query_one("#scope-label", Label).update(
+            f"{ref.alias} · {len(self.selected_bundle.concepts)} concepts"
+        )
+        self.query_one("#concept-view", VimMarkdown).update(
             f"# {ref.alias}\n\n{len(self.selected_bundle.concepts)} concepts · OKF {self.selected_bundle.version or 'unspecified'}\n\nPath: `{ref.path}`"
         )
         self.update_health()
@@ -264,7 +308,7 @@ class OKFleetApp(App[None]):
             f"\n**Path:** `{concept.path.relative_to(self.selected_ref.path)}`  "
             f"\n**Links:** {len(concept.links)} outbound · {len(incoming)} inbound"
         )
-        self.query_one("#concept-view", Markdown).update(
+        self.query_one("#concept-view", VimMarkdown).update(
             f"# {concept.title}\n\n{concept.body}{metadata}"
         )
         self.query_one("#tabs", TabbedContent).active = "concept-tab"
@@ -288,37 +332,16 @@ class OKFleetApp(App[None]):
                 lines.append(
                     f"- {icon} **{item.code}** `{location}:{item.line or 1}` — {item.message}"
                 )
-        self.query_one("#health-view", Markdown).update("\n".join(lines))
+        self.query_one("#health-view", VimMarkdown).update("\n".join(lines))
 
     def update_graph(self) -> None:
         if not self.selected_bundle:
             return
         graph = graph_neighborhood(self.selected_bundle, self.selected_concept_id, 1)
         mermaid = graph_mermaid(graph)
-        self.query_one("#graph-view", Markdown).update(
+        self.query_one("#graph-view", VimMarkdown).update(
             f"# Relationship graph\n\n```mermaid\n{mermaid}```\n\n{len(graph['nodes'])} nodes · {len(graph['edges'])} edges"
         )
-
-    def on_input_changed(self, event: Input.Changed) -> None:
-        if event.input.id != "search-input":
-            return
-        query = event.value.strip()
-        if not query:
-            self.query_one("#search-results", Markdown).update("Enter a query above.")
-            return
-        refs = [ref for ref in self.refs if ref.available]
-        for ref in refs:
-            self.database.index_bundle(ref, load_bundle(ref.path))
-        hits = self.database.search(query, bundle_ids=[ref.id for ref in refs], limit=30)
-        lines = [f"# Search · {query}", ""]
-        lines.extend(
-            f"- **`{hit.citation}`** · {hit.concept_type or 'Concept'} — {hit.description or hit.snippet}"
-            for hit in hits
-        )
-        if not hits:
-            lines.append("No matches.")
-        self.query_one("#search-results", Markdown).update("\n".join(lines))
-        self.query_one("#tabs", TabbedContent).active = "search-tab"
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id != "chat-input" or not event.value.strip():
@@ -376,7 +399,7 @@ class OKFleetApp(App[None]):
                         fleet_refs, Path(self._fleet_temp.name)
                     )
             self.chat_transcript += f"\n\n## You\n\n{question}\n\n## {provider_name.title()}\n\n"
-            transcript = self.query_one("#chat-transcript", Markdown)
+            transcript = self.query_one("#chat-transcript", VimMarkdown)
             transcript.update(self.chat_transcript + "▌")
             activity = self.query_one("#activity", Static)
             async for event in self.chat_service.send(
@@ -429,22 +452,154 @@ class OKFleetApp(App[None]):
             except Exception as exc:
                 self.notify(str(exc), severity="error")
 
-    def action_focus_search(self) -> None:
-        self.query_one("#search-input", Input).focus()
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        if isinstance(
+            self.screen, (SpotlightSearch, KeyboardHelp)
+        ) and action in self._NAVIGATION_ACTIONS | {"global_search"}:
+            return False
+        return not (
+            isinstance(self.focused, (Input, Select)) and action in self._NAVIGATION_ACTIONS
+        )
+
+    def action_search(self) -> None:
+        self.push_screen(
+            SpotlightSearch(
+                self.database,
+                self.refs,
+                current_bundle_id=self.selected_ref.id if self.selected_ref else None,
+                index_errors=self._search_index_errors,
+                on_select=self._open_search_selection,
+            )
+        )
+
+    def action_global_search(self) -> None:
+        self.action_search()
+
+    def _open_search_selection(self, selection: SearchSelection) -> bool:
+        ref = next((item for item in self.refs if item.id == selection.bundle_id), None)
+        if ref is None or not ref.available:
+            self.notify(
+                "That bundle is no longer available. Refresh and try again.", severity="error"
+            )
+            return False
+        if not self.open_bundle(ref):
+            return False
+        if selection.kind == "concept":
+            if (
+                not selection.concept_id
+                or not self.selected_bundle
+                or not self.selected_bundle.get(selection.concept_id)
+            ):
+                self.notify(
+                    "That concept is no longer available. Refresh and try again.", severity="error"
+                )
+                return False
+            self.open_concept(selection.concept_id)
+        self.call_after_refresh(self._reveal_tree_selection, ref, selection.concept_id)
+        return True
+
+    def _reveal_tree_selection(self, ref: BundleRef, concept_id: str | None) -> None:
+        tree = self.query_one("#bundle-tree", VimTree)
+        stack = [tree.root]
+        bundle_node: Any | None = None
+        while stack:
+            node = stack.pop()
+            data = node.data
+            if (
+                isinstance(data, tuple)
+                and len(data) >= 2
+                and data[0] == "bundle"
+                and data[1].id == ref.id
+            ):
+                bundle_node = node
+                break
+            stack.extend(reversed(node.children))
+        if bundle_node is None:
+            return
+        if bundle_node.parent is not None:
+            bundle_node.parent.expand()
+        bundle_node.expand()
+        self._populate_concepts(bundle_node, ref)
+        target = bundle_node
+        if concept_id:
+            for child in bundle_node.children:
+                data = child.data
+                if isinstance(data, tuple) and len(data) >= 3 and data[2] == concept_id:
+                    target = child
+                    break
+        self.call_after_refresh(tree.move_cursor, target)
+
+    def action_focus_browse(self) -> None:
+        self.action_normal_mode()
 
     def action_focus_chat(self) -> None:
-        inspector = self.query_one("#inspector", Vertical)
-        if inspector.display:
-            self.query_one("#chat-input", Input).focus()
+        drawer = self.query_one("#chat-drawer", Vertical)
+        self._chat_open = True
+        drawer.remove_class("hidden")
+        drawer.set_class(self._narrow, "full-screen")
+        self.query_one("#mode-indicator", Static).update("INSERT · CHAT")
+        self.query_one("#chat-input", Input).focus()
+
+    def action_normal_mode(self) -> None:
+        if self._chat_open:
+            self._chat_open = False
+            self.query_one("#chat-drawer", Vertical).add_class("hidden")
+        self.query_one("#mode-indicator", Static).update("NORMAL")
+        self.query_one("#bundle-tree", VimTree).focus()
+
+    def _pane_targets(self) -> list[Widget]:
+        tabs = self.query_one("#tabs", TabbedContent)
+        view_id = {
+            "concept-tab": "#concept-view",
+            "health-tab": "#health-view",
+            "graph-tab": "#graph-view",
+        }.get(tabs.active, "#concept-view")
+        targets: list[Widget] = [
+            self.query_one("#bundle-tree", VimTree),
+            self.query_one(view_id, VimMarkdown),
+        ]
+        if self._chat_open:
+            targets.append(self.query_one("#chat-transcript", VimMarkdown))
+        return targets
+
+    def _focus_relative_pane(self, offset: int) -> None:
+        targets = self._pane_targets()
+        focused_id = self.focused.id if self.focused else None
+        if focused_id == "bundle-tree":
+            index = 0
+        elif (
+            focused_id
+            in {
+                "chat-transcript",
+                "chat-input",
+                "provider-select",
+                "mode-select",
+                "activity",
+                "diff",
+                "apply-button",
+            }
+            and len(targets) == 3
+        ):
+            index = 2
         else:
-            self.notify("Chat panel is hidden at this terminal width; widen the terminal.")
+            index = 1
+        targets[(index + offset) % len(targets)].focus()
+
+    def action_focus_previous_pane(self) -> None:
+        self._focus_relative_pane(-1)
+
+    def action_focus_next_pane(self) -> None:
+        self._focus_relative_pane(1)
+
+    def action_show_tab(self, tab_id: str) -> None:
+        self.query_one("#tabs", TabbedContent).active = tab_id
 
     def action_validate(self) -> None:
         if not self.selected_bundle:
             self.notify("Select a bundle first.")
             return
         self.update_health()
-        self.query_one("#tabs", TabbedContent).active = "health-tab"
+        self.action_show_tab("health-tab")
 
     def action_refresh(self) -> None:
         self.refresh_tree()
@@ -481,10 +636,7 @@ class OKFleetApp(App[None]):
         self.notify("Discarded staged changes.")
 
     def action_help(self) -> None:
-        self.notify(
-            "Use the sidebar to browse, / to search, c to chat, v for health, d for staged diff, Esc to cancel a turn, Ctrl+X to discard staged work, and Ctrl+P for commands.",
-            timeout=8,
-        )
+        self.push_screen(KeyboardHelp())
 
     def on_unmount(self) -> None:
         if self.workspace:

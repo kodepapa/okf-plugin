@@ -1,0 +1,330 @@
+Screen {
+    layout: vertical;
+    background: #07111f;
+    color: #dbeafe;
+}
+
+#topbar {
+    height: 3;
+    padding: 0 1;
+    background: #0b172a;
+    border-bottom: solid #1e3a5f;
+}
+
+#brand {
+    width: 20;
+    height: 3;
+    content-align: left middle;
+}
+
+#product-label {
+    width: 1fr;
+    height: 3;
+    color: #64748b;
+    content-align: left middle;
+}
+
+#mode-indicator {
+    width: auto;
+    height: 3;
+    padding: 0 1;
+    color: #93c5fd;
+    content-align: right middle;
+    text-style: bold;
+}
+
+#body {
+    height: 1fr;
+}
+
+#sidebar {
+    width: 30;
+    min-width: 24;
+    background: #091525;
+    border-right: solid #1e3a5f;
+}
+
+#library-header {
+    height: 3;
+    padding: 0 1;
+    border-bottom: solid #132946;
+}
+
+#library-title {
+    width: 1fr;
+    height: 3;
+    content-align: left middle;
+    color: #bfdbfe;
+    text-style: bold;
+}
+
+#library-count {
+    width: auto;
+    height: 3;
+    content-align: right middle;
+    color: #64748b;
+}
+
+#scope-label {
+    height: 2;
+    padding: 0 1;
+    color: #64748b;
+    content-align: left middle;
+}
+
+#bundle-tree {
+    height: 1fr;
+    padding: 0 1 1 0;
+    background: #091525;
+    scrollbar-color: #1e3a5f;
+    scrollbar-color-hover: #2563eb;
+    scrollbar-color-active: #3b82f6;
+}
+
+#bundle-tree:focus {
+    border-right: heavy #3b82f6;
+}
+
+#main {
+    width: 1fr;
+    background: #07111f;
+}
+
+#tabs {
+    height: 1fr;
+    background: #07111f;
+}
+
+TabbedContent ContentSwitcher {
+    background: #07111f;
+}
+
+Tabs {
+    height: 3;
+    background: #091525;
+    border-bottom: solid #132946;
+}
+
+Tab {
+    color: #64748b;
+    padding: 0 2;
+}
+
+Tab.-active {
+    color: #dbeafe;
+    text-style: bold;
+}
+
+TabPane {
+    padding: 1 2;
+    overflow: auto;
+    background: #07111f;
+}
+
+VimMarkdown {
+    border-left: tall transparent;
+    scrollbar-color: #1e3a5f;
+    scrollbar-color-hover: #2563eb;
+    scrollbar-color-active: #3b82f6;
+}
+
+VimMarkdown:focus {
+    border-left: tall #3b82f6;
+}
+
+#chat-drawer {
+    layer: overlay;
+    dock: right;
+    width: 52;
+    min-width: 36;
+    height: 1fr;
+    background: #0b172a;
+    border-left: heavy #2563eb;
+}
+
+#chat-drawer.full-screen {
+    width: 1fr;
+    min-width: 1;
+    border-left: none;
+}
+
+#chat-header {
+    height: 3;
+    padding: 0 1;
+    border-bottom: solid #1e3a5f;
+}
+
+#chat-title {
+    width: 1fr;
+    height: 3;
+    content-align: left middle;
+    text-style: bold;
+}
+
+#chat-close-hint {
+    width: auto;
+    height: 3;
+    content-align: right middle;
+    color: #64748b;
+}
+
+#chat-controls {
+    height: 3;
+    padding: 0 1;
+}
+
+#provider-select {
+    width: 18;
+}
+
+#mode-select {
+    width: 20;
+}
+
+#chat-transcript {
+    height: 1fr;
+    padding: 1 2;
+    overflow-y: auto;
+}
+
+#activity {
+    height: 1;
+    padding: 0 2;
+    color: #64748b;
+    background: #091525;
+}
+
+#chat-input {
+    margin: 1 1 0 1;
+    border: tall #1e3a5f;
+}
+
+#chat-input:focus {
+    border: tall #3b82f6;
+}
+
+#chat-hints {
+    height: 2;
+    padding: 0 2;
+    color: #64748b;
+}
+
+#diff {
+    height: 12;
+    padding: 1;
+    overflow: auto;
+    border-top: solid #1e3a5f;
+}
+
+#apply-button {
+    width: 1fr;
+    margin: 0 1 1 1;
+}
+
+#status-bar {
+    height: 1;
+    padding: 0 1;
+    background: #0b172a;
+    color: #64748b;
+}
+
+.hidden {
+    display: none;
+}
+
+SpotlightSearch {
+    align: center top;
+    padding: 3 2 1 2;
+    background: rgba(2, 8, 23, 0.82);
+}
+
+#spotlight {
+    width: 86;
+    max-width: 96%;
+    height: 24;
+    max-height: 92%;
+    border: round #3b82f6;
+    background: #0b172a;
+}
+
+#spotlight-search-row {
+    height: 3;
+    background: #0f2038;
+    border-bottom: solid #1e3a5f;
+}
+
+#spotlight-icon {
+    width: 4;
+    height: 3;
+    color: #60a5fa;
+    content-align: center middle;
+    text-style: bold;
+}
+
+#spotlight-query {
+    width: 1fr;
+    height: 3;
+    border: none;
+    background: #0f2038;
+}
+
+#spotlight-scope {
+    width: auto;
+    height: 3;
+    padding: 0 1;
+    color: #93c5fd;
+    content-align: right middle;
+    text-style: bold;
+}
+
+#spotlight-meta {
+    height: 2;
+    padding: 0 2;
+    color: #64748b;
+    content-align: left middle;
+}
+
+#spotlight-results {
+    height: 1fr;
+    margin: 0 1;
+    background: #0b172a;
+}
+
+#spotlight-results > .option-list--option {
+    height: 1;
+    padding: 0 1;
+}
+
+#spotlight-results > .option-list--option-highlighted {
+    background: #1d4ed8;
+    color: #eff6ff;
+}
+
+#spotlight-empty {
+    height: 1fr;
+    padding: 2;
+    color: #64748b;
+    content-align: center middle;
+}
+
+#spotlight-hints {
+    height: 2;
+    padding: 0 2;
+    color: #64748b;
+    content-align: left middle;
+}
+
+KeyboardHelp {
+    align: center middle;
+    background: rgba(2, 8, 23, 0.82);
+}
+
+#keyboard-help {
+    width: 72;
+    max-width: 94%;
+    height: 27;
+    max-height: 92%;
+    padding: 1 2;
+    border: round #3b82f6;
+    background: #0b172a;
+}

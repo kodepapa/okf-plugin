@@ -4,24 +4,71 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Python ${{ matrix.python }} · ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         python: ["3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
-      - run: uv sync --extra dev
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run mypy src
-      - run: uv run pytest
-      - run: uv run python tools/verify_generated.py
-      - run: uv build
+      - name: Sync locked dependencies
+        run: uv sync --locked --extra dev
+      - name: Lint
+        run: uv run ruff check .
+      - name: Check formatting
+        run: uv run ruff format --check .
+      - name: Type check
+        run: uv run mypy src
+      - name: Test with coverage
+        run: uv run pytest --cov=okfleet --cov-report=term-missing:skip-covered
+      - name: Verify generated helpers
+        run: uv run python tools/verify_generated.py
 
+  package:
+    name: Distribution smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - name: Sync locked dependencies
+        run: uv sync --locked --extra dev
+      - name: Build wheel and source distribution
+        run: uv build
+      - name: Verify packaged files and metadata
+        run: uv run python tools/verify_distribution.py dist
+      - name: Check package metadata
+        run: uvx twine check dist/*
+      - name: Install and smoke-test the wheel
+        run: |
+          uv venv /tmp/okfleet-package-smoke
+          uv pip install --python /tmp/okfleet-package-smoke/bin/python dist/*.whl
+          /tmp/okfleet-package-smoke/bin/okfleet --version
+          /tmp/okfleet-package-smoke/bin/python -c "from importlib.resources import files; root = files('okfleet') / 'provider_plugin'; assert (root / 'skills' / 'okf-read' / 'SKILL.md').is_file(); assert (root / '.claude-plugin' / 'plugin.json').is_file()"

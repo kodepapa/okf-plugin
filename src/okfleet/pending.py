@@ -41,7 +41,11 @@ class PendingChangeStore:
         destination = self.root / changeset_id
         if destination.exists():
             raise ValueError(f"changeset already exists: {changeset_id}")
-        destination.mkdir(parents=True, exist_ok=False)
+        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        destination.mkdir(mode=0o700)
+        if os.name != "nt":
+            self.root.chmod(0o700)
+            destination.chmod(0o700)
         shutil.copytree(workspace.root, destination / "bundle", symlinks=False)
         manifest = {
             "schema_version": 1,

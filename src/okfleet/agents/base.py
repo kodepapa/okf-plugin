@@ -5,10 +5,14 @@ import shutil
 import uuid
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
 from ..models import AgentEvent, AgentSession, ProviderStatus, SessionMode
+
+COMMAND_TIMEOUT_SECONDS = 5.0
+COMMAND_TERMINATE_GRACE_SECONDS = 1.0
 
 
 class ProviderError(RuntimeError):
@@ -60,14 +64,38 @@ class AgentProvider(ABC):
         await self.cancel(session)
 
     @staticmethod
-    async def command_output(*args: str, cwd: Path | None = None) -> tuple[int, str, str]:
+    async def command_output(
+        *args: str,
+        cwd: Path | None = None,
+        timeout: float = COMMAND_TIMEOUT_SECONDS,
+    ) -> tuple[int, str, str]:
         process = await asyncio.create_subprocess_exec(
             *args,
             cwd=cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await process.communicate()
+        communication = asyncio.create_task(process.communicate())
+        try:
+            stdout, stderr = await asyncio.wait_for(asyncio.shield(communication), timeout=timeout)
+        except TimeoutError:
+            if process.returncode is None:
+                with suppress(ProcessLookupError):
+                    process.terminate()
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    asyncio.shield(communication), timeout=COMMAND_TERMINATE_GRACE_SECONDS
+                )
+            except TimeoutError:
+                if process.returncode is None:
+                    with suppress(ProcessLookupError):
+                        process.kill()
+                stdout, stderr = await communication
+            timeout_error = f"command timed out after {timeout:g} seconds"
+            decoded_stderr = stderr.decode(errors="replace")
+            if decoded_stderr and not decoded_stderr.endswith("\n"):
+                decoded_stderr += "\n"
+            return (124, stdout.decode(errors="replace"), decoded_stderr + timeout_error)
         return (
             process.returncode or 0,
             stdout.decode(errors="replace"),

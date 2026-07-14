@@ -20,10 +20,10 @@ INDEX_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>OKFleet Web</title>
   <style>
-    :root{color-scheme:dark;--bg:#091414;--panel:#102222;--line:#244141;--ink:#e8fbf5;--muted:#8fb5ad;--hot:#63e6be}
+    :root{color-scheme:dark;--bg:#07111f;--panel:#0f2038;--line:#1e3a5f;--ink:#dbeafe;--muted:#64748b;--hot:#60a5fa}
     *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:15px ui-monospace,SFMono-Regular,Menlo,monospace}
     header{display:flex;gap:1rem;align-items:center;padding:1rem 1.3rem;border-bottom:1px solid var(--line)}
-    h1{font-size:1.1rem;margin:0;color:var(--hot)} input,select{background:#071010;color:var(--ink);border:1px solid var(--line);padding:.65rem;border-radius:.35rem}
+    h1{font-size:1.1rem;margin:0;color:var(--hot)} input,select{background:#091525;color:var(--ink);border:1px solid var(--line);padding:.65rem;border-radius:.35rem}
     input{flex:1}.layout{display:grid;grid-template-columns:15rem 22rem 1fr;height:calc(100vh - 66px)}
     aside,section,main{overflow:auto;padding:1rem;border-right:1px solid var(--line)} button,.hit{display:block;width:100%;text-align:left;color:var(--ink);background:transparent;border:0;border-bottom:1px solid var(--line);padding:.65rem;cursor:pointer}
     button:hover,.hit:hover{background:var(--panel)} .type,.citation{color:var(--hot);font-size:.8rem}.muted{color:var(--muted)} pre{white-space:pre-wrap;line-height:1.55;font-family:inherit}
@@ -103,9 +103,13 @@ class WebService:
             if ref is None:
                 raise KeyError(bundle_alias)
             bundle_ids = [ref.id]
-        return [
-            hit.to_dict() for hit in self.database.search(query, bundle_ids=bundle_ids, limit=100)
-        ]
+        # ThreadingHTTPServer handles every request on a worker thread. Give each
+        # search its own read-only connection instead of moving the indexing
+        # connection across threads or disabling SQLite's thread ownership check.
+        with SearchDatabase.open_reader(self.database.path) as database:
+            return [
+                hit.to_dict() for hit in database.search(query, bundle_ids=bundle_ids, limit=100)
+            ]
 
     def concept(self, bundle_alias: str, concept_id: str) -> dict[str, Any]:
         ref = self.refs.get(bundle_alias)

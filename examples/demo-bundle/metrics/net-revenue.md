@@ -11,4 +11,3 @@ Net revenue is calculated from [Orders](../tables/orders.md) as gross recognized
 # Definition
 
 `SUM(gross_revenue - refund_amount - discount_amount)`
-

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/kodepapa/okf-plugin/compare/v0.5.0...v0.6.0) (2026-07-14)
+
+
+### Features
+
+* add Release Please workflow and updated branding ([6ecf0de](https://github.com/kodepapa/okf-plugin/commit/6ecf0de131fe071f70f1dce27cf928c4a81eaf2a))
+
 ## 0.5.0 - 2026-07-14
 
 - Introduced the OKFleet Python library, CLI, and Textual TUI.

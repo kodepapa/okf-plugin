@@ -1,108 +1,114 @@
-# OKFleet
+<p align="center">
+  <img src="./assets/okfleet-logo.svg" alt="OKFleet — Open knowledge. One terminal. Every bundle." width="680">
+</p>
 
-**The terminal workbench for a fleet of Open Knowledge Format bundles.**
+<p align="center">
+  <strong>The local-first developer workbench for Open Knowledge Format.</strong><br>
+  Explore, search, validate, govern, and safely improve an entire fleet of knowledge bundles—with or without an AI agent.
+</p>
 
-OKFleet turns this repository from an agent-skills-only plugin into a complete local OKF toolkit. It can discover, browse, search, validate, graph, and safely improve [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) bundles. Its TUI includes a provider-neutral chat workbench for Codex and Claude Code, while fleet-wide chat remains read-only.
+<p align="center">
+  <a href="https://github.com/kodepapa/okf-plugin/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/kodepapa/okf-plugin/ci.yml?branch=main&amp;style=flat-square&amp;logo=github&amp;label=CI&amp;color=2563EB"></a>
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-2563EB?style=flat-square&amp;logo=python&amp;logoColor=white">
+  <img alt="Project status: beta" src="https://img.shields.io/badge/status-beta-0EA5E9?style=flat-square">
+  <img alt="Local first" src="https://img.shields.io/badge/local--first-yes-0284C7?style=flat-square&amp;logo=sqlite&amp;logoColor=white">
+  <img alt="MCP compatible" src="https://img.shields.io/badge/MCP-compatible-0369A1?style=flat-square">
+</p>
 
-## Highlights
+<p align="center">
+  <a href="#quickstart">Quickstart</a> ·
+  <a href="#what-you-get">Features</a> ·
+  <a href="#agent-workflows">Agent workflows</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#documentation">Documentation</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
 
-- Full-screen Textual TUI with local/global bundle navigation, Markdown rendering, search, health, graph, chat, and staged diff/apply.
-- CLI and Python library for deterministic OKF work without an AI provider.
-- Conservative local discovery plus a global user registry.
-- Incremental SQLite FTS5 search with field filters such as `type:Metric tag:finance`.
-- Opt-in, dependency-free local semantic retrieval plus saved searches and named collections.
-- Validation, health diagnostics, backlinks, broken links, staleness, and Mermaid/DOT/JSON graph exports.
-- OpenAPI, dbt manifest, SQL DDL, and generic catalog importers; bundle drift comparison; policy packs; and Python entry-point extensions.
-- Explicit cached Git remotes, a read-only local web explorer, and an LSP server for live diagnostics and internal-link navigation.
-- Safe concept creation and move/rename with inbound-link repair.
-- Codex app-server JSON-RPC with JSONL exec fallback, plus a Claude Code stream-JSON adapter, using the user's existing CLI authentication.
-- Read-only fleet chat and a read-only MCP server.
-- Staged bundle work: agents edit a snapshot, then the user reviews diagnostics/diffs before apply.
-- Existing `okf-read` and `okf-author` Agent Skills remain installable and self-contained.
+---
 
-The detailed architecture and agent-ready work breakdown live in [docs/OKFLEET_DEVELOPMENT_PLAN.md](docs/OKFLEET_DEVELOPMENT_PLAN.md).
+## Why OKFleet?
 
-## Install for development
+An OKF bundle is deliberately simple: Markdown documents with YAML frontmatter. That simplicity is its strength—but once knowledge spans multiple repositories, teams need discovery, retrieval, quality checks, safe authoring, and tooling that does not lock their knowledge into one agent or vendor.
+
+OKFleet provides that missing workbench. The deterministic core works without an AI provider; Codex and Claude Code become optional collaborators on top of the same validated bundle model.
+
+## What you get
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🧭 One knowledge navigator</h3>
+      Discover local bundles, register global ones, create collections, browse concepts, follow backlinks, and inspect neighborhood graphs from a full-screen Textual TUI.
+    </td>
+    <td width="50%" valign="top">
+      <h3>🔎 Fleet-wide retrieval</h3>
+      Incremental SQLite FTS5 search, field filters, saved searches, named scopes, and opt-in dependency-free semantic retrieval across one bundle or the whole fleet.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🛡️ Knowledge quality</h3>
+      Validate frontmatter, indexes, links, duplicate IDs, staleness, orphans, team policy packs, and extension diagnostics—with text, JSON, and SARIF output.
+    </td>
+    <td width="50%" valign="top">
+      <h3>🤖 Safe agent collaboration</h3>
+      Chat through Codex or Claude Code using existing CLI authentication. Fleet chat is read-only; work mode edits a private snapshot for review before apply.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🧰 Developer-native surfaces</h3>
+      Use the TUI, composable CLI, Python library, read-only MCP server, local web explorer, or LSP diagnostics and Markdown-link navigation.
+    </td>
+    <td width="50%" valign="top">
+      <h3>🔌 Open extension points</h3>
+      Import OpenAPI, dbt, SQL, and catalogs; compare bundle drift; cache Git remotes; and add custom importers, templates, or diagnostics through Python entry points.
+    </td>
+  </tr>
+</table>
+
+## Quickstart
+
+OKFleet currently targets Python 3.11+ and is installed from source while the package is in beta.
 
 ```bash
+git clone https://github.com/kodepapa/okf-plugin.git
+cd okf-plugin
 uv sync --extra dev
 uv run okfleet doctor
 uv run okfleet
 ```
 
-The package targets Python 3.11+. The standalone helper embedded in each skill remains compatible with older Python installations and has no required third-party dependencies.
-
-Once published, the intended user installs are:
+Running `okfleet` without a subcommand opens the TUI in the current directory.
 
 ```bash
-uvx okfleet
-# or
-pipx install okfleet
-```
-
-## Quickstart
-
-Open the TUI in the current path:
-
-```bash
-okfleet
-```
-
-Discover and register bundles:
-
-```bash
+# Find and register knowledge
 okfleet discover ~/work
 okfleet bundles add ~/work/knowledge/warehouse --alias warehouse
-okfleet bundles list
-okfleet collections create production warehouse
-```
-
-Search and inspect:
-
-```bash
 okfleet bundles refresh
+
+# Search and inspect
 okfleet search 'type:Metric revenue'
-okfleet search 'customer lifetime value' --semantic
-okfleet searches save finance-review 'tag:finance type:Metric' --bundle warehouse
-okfleet searches run finance-review
 okfleet show warehouse:metrics/net_revenue
 okfleet graph warehouse:metrics/net_revenue --format mermaid
-okfleet status warehouse --diff
-```
 
-Validate and maintain:
-
-```bash
+# Validate and maintain
 okfleet validate warehouse
 okfleet health warehouse --stale-after 180
-okfleet index warehouse
 okfleet index warehouse --write
-okfleet new warehouse metrics/gross-margin --type Metric --write
-okfleet move warehouse:metrics/gross-margin metrics/gross_margin --write
 ```
 
-Import, compare, and govern knowledge:
+Once published, the intended zero-install entry point is `uvx okfleet`.
 
-```bash
-okfleet import ./openapi.yaml warehouse --kind openapi       # preview
-okfleet import ./manifest.json warehouse --kind dbt --write
-okfleet compare warehouse warehouse-next --format json
-okfleet validate warehouse --policy ./okfleet-policy.toml
-```
+## Agent workflows
 
-Use cached remote bundles and the read-only web explorer:
+OKFleet exposes the same bundle context and safety model to both supported providers.
 
-```bash
-okfleet bundles clone https://github.com/acme/knowledge.git --alias acme
-okfleet bundles update acme
-okfleet web --path ~/work
-```
-
-`okfleet web` binds to `127.0.0.1:8765` by default. It has no mutation endpoints or authentication, so non-loopback binding is rejected unless `--allow-remote` is explicitly supplied.
-
-For editor integration, configure a Language Server client to launch `okfleet lsp`. It publishes OKF diagnostics on open/change/save and makes internal Markdown links navigable.
-
-Chat with one bundle or across the registered fleet:
+| Mode | Scope | Filesystem access | Intended use |
+|---|---|---|---|
+| `bundle` | One bundle | Read-only | Ask grounded questions about a bundle. |
+| `fleet` | Registered bundles or a collection | Read-only, retrieved context only | Compare concepts across bundles. |
+| `work` | One private snapshot | Staged writes | Improve knowledge, inspect the diff, then explicitly apply. |
 
 ```bash
 okfleet chat 'How is net revenue defined?' --scope warehouse --provider codex
@@ -110,91 +116,138 @@ okfleet chat 'Compare revenue definitions across bundles' --scope fleet --provid
 okfleet chat 'Improve the Orders documentation' --scope warehouse --mode work --provider codex
 ```
 
-Work mode stages changes and prints a diff. Add `--apply` only when the completed staged result should be applied.
-Without it, OKFleet persists the snapshot and prints an ID for `okfleet changesets show ID` and
-`okfleet apply ID`. Provider-native conversations can be continued with `okfleet sessions resume`.
+Work mode never targets the source bundle directly. It stages the result, validates it, checks source hashes for concurrent changes, and prints a reviewable diff. Add `--apply` only when a completed staged result should be written back.
 
-## TUI keys
+## Everyday workflows
 
-| Key | Action |
-|---|---|
-| `/` | Search all loaded bundles. |
-| `c` | Focus chat. |
-| `v` | Show validation and health. |
-| `d` | Toggle staged diff. |
-| `Esc` | Cancel the active provider turn. |
-| `Ctrl+X` | Discard the active staged snapshot. |
-| `r` | Refresh bundles and index. |
-| `Ctrl+P` | Open the command palette. |
-| `?` | Show help. |
-| `q` | Quit. |
+<details>
+<summary><strong>Search, collections, and semantic retrieval</strong></summary>
 
-## Agent skills and plugins
+```bash
+okfleet collections create production warehouse analytics
+okfleet search 'tag:finance type:Metric' --collection production
+okfleet search 'customer lifetime value' --semantic
+okfleet searches save finance-review 'tag:finance type:Metric' --bundle warehouse
+okfleet searches run finance-review
+```
+
+</details>
+
+<details>
+<summary><strong>Create, move, import, and compare knowledge</strong></summary>
+
+```bash
+okfleet new warehouse metrics/gross-margin --type Metric --write
+okfleet move warehouse:metrics/gross-margin metrics/gross_margin --write
+okfleet import ./openapi.yaml warehouse --kind openapi             # preview
+okfleet import ./manifest.json warehouse --kind dbt --write
+okfleet compare warehouse warehouse-next --format json
+```
+
+</details>
+
+<details>
+<summary><strong>Remote bundles, web explorer, editor, and MCP</strong></summary>
+
+```bash
+okfleet bundles clone https://github.com/acme/knowledge.git --alias acme
+okfleet bundles update acme
+okfleet web --path ~/work
+okfleet lsp
+okfleet mcp serve
+```
+
+The web explorer binds to `127.0.0.1:8765` by default. It has no mutation endpoints or authentication, so non-loopback binding requires an explicit `--allow-remote`.
+
+</details>
+
+## TUI command map
+
+| Key | Action | Key | Action |
+|---|---|---|---|
+| `/` | Search loaded bundles | `c` | Focus chat |
+| `v` | Validation and health | `d` | Toggle staged diff |
+| `Esc` | Cancel provider turn | `Ctrl+X` | Discard staged snapshot |
+| `r` | Refresh and reindex | `Ctrl+P` | Command palette |
+| `?` | Help | `q` | Quit |
+
+## Architecture
+
+Every interface delegates to one deterministic core. Agent providers do not own bundle parsing, validation, search, or apply semantics.
+
+```mermaid
+flowchart LR
+    Local["Local OKF bundles"] --> Core["OKFleet core"]
+    Remote["Explicit Git cache"] --> Core
+    Core --> TUI["Textual TUI"]
+    Core --> CLI["CLI / Python"]
+    Core --> Web["Read-only Web"]
+    Core --> LSP["LSP"]
+    Core --> MCP["Read-only MCP"]
+    TUI --> Chat["Provider-neutral chat"]
+    CLI --> Chat
+    Chat --> Codex["Codex"]
+    Chat --> Claude["Claude Code"]
+    Chat --> Stage["Private staged workspace"]
+    Stage --> Review["Validate · Diff · Conflict check"]
+    Review -->|"explicit apply"| Local
+```
+
+The registry and derived SQLite database live in platform-appropriate user directories. Bundle Markdown remains the source of truth.
+
+## Agent Skills and plugins
 
 | Skill | Purpose |
 |---|---|
 | [`okf-author`](skills/okf-author/SKILL.md) | Create, edit, enrich, cross-link, index, log, and validate bundles. |
-| [`okf-read`](skills/okf-read/SKILL.md) | Navigate bundles by progressive disclosure and answer source-grounded questions. |
+| [`okf-read`](skills/okf-read/SKILL.md) | Navigate bundles progressively and answer source-grounded questions. |
 
-Claude Code plugin:
+Install the Claude Code plugin:
 
 ```text
 /plugin marketplace add kodepapa/okf-plugin
 /plugin install okf@okf-plugin
 ```
 
-Personal skill locations also remain supported:
-
-```bash
-ln -s "$(pwd)/skills/okf-author" ~/.claude/skills/okf-author
-ln -s "$(pwd)/skills/okf-read" ~/.claude/skills/okf-read
-ln -s "$(pwd)/skills/okf-author" ~/.agents/skills/okf-author
-ln -s "$(pwd)/skills/okf-read" ~/.agents/skills/okf-read
-```
-
-The repository now also contains a Codex manifest at `.codex-plugin/plugin.json` and read-only MCP wiring in `.mcp.json`.
-
-## Standalone helper compatibility
-
-Both skills still bundle `scripts/okf.py`:
-
-```bash
-python3 skills/okf-author/scripts/okf.py validate <bundle>
-python3 skills/okf-author/scripts/okf.py index <bundle> --write
-python3 skills/okf-author/scripts/okf.py list <bundle>
-```
-
-The helper copies are checked for byte equality with:
-
-```bash
-uv run python tools/verify_generated.py
-```
+The repository also includes a Codex manifest at [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json) and read-only MCP wiring in [`.mcp.json`](.mcp.json). The standalone helpers inside both skills remain self-contained and compatible with older Python installations.
 
 ## Privacy and safety
 
-- Bundle files and the search database stay local.
-- OKFleet does not read or store provider credentials.
-- Fleet chat starts in an empty temporary directory and receives retrieved, read-only context.
-- Claude fleet chat has no filesystem tools; Codex fleet chat runs in a read-only sandbox.
-- Bundle content is labelled untrusted reference data in provider prompts.
-- Work sessions edit a private snapshot; apply uses source hashes to block stale overwrites.
-- No command automatically commits, pushes, opens a pull request, or grants full provider access.
+- Bundle files, registry state, staged snapshots, and the search database stay local.
+- OKFleet does not read, copy, or store provider credentials.
+- Fleet chat receives retrieved read-only context from an empty temporary directory.
+- Bundle content is labelled as untrusted reference data in provider prompts.
+- Work sessions edit a snapshot; apply uses complete-tree hashes to block stale overwrites.
+- No command automatically commits, pushes, opens a pull request, or grants unrestricted shell access.
 
-Provider and state overrides useful in automation:
+Read the full [security and privacy model](docs/SECURITY.md).
+
+## Documentation
+
+| Document | What it covers |
+|---|---|
+| [Development plan](docs/OKFLEET_DEVELOPMENT_PLAN.md) | Product scope, architecture, milestones, acceptance criteria, and agent-ready work breakdown. |
+| [Advanced workflows](docs/EXTENDING_OKFLEET.md) | Importers, policies, remote caches, web, LSP, and Python extension contracts. |
+| [Provider protocols](docs/PROVIDER_PROTOCOLS.md) | Codex app-server/exec and Claude Code stream-JSON behavior. |
+| [OKF compatibility](docs/OKF_COMPATIBILITY.md) | Specification support and standalone-helper parity. |
+| [Security](docs/SECURITY.md) | Trust boundaries, privacy, staging, and remote-access guidance. |
+| [Contributing](CONTRIBUTING.md) | Local setup, tests, and contribution workflow. |
+| [Changelog](CHANGELOG.md) | User-visible changes by release. |
+
+## Configuration
 
 | Variable | Purpose |
 |---|---|
-| `OKFLEET_CONFIG` | Registry/config TOML path. |
-| `OKFLEET_DATABASE` | SQLite search/session database path. |
+| `OKFLEET_CONFIG` | Registry and configuration TOML path. |
+| `OKFLEET_DATABASE` | SQLite search and session database path. |
 | `OKFLEET_CHANGESETS` | Persisted staged-work directory. |
-| `OKFLEET_REMOTE_CACHE` | Explicit cache directory for cloned remote bundles. |
-| `OKFLEET_CODEX_PROTOCOL=exec` | Force Codex JSONL fallback instead of app-server. |
-
-See [advanced workflows and extension APIs](docs/EXTENDING_OKFLEET.md), [provider protocols](docs/PROVIDER_PROTOCOLS.md), [compatibility](docs/OKF_COMPATIBILITY.md), and [security](docs/SECURITY.md) for the operational contracts.
+| `OKFLEET_REMOTE_CACHE` | Cache directory for explicitly cloned remote bundles. |
+| `OKFLEET_CODEX_PROTOCOL=exec` | Force the Codex JSONL fallback instead of app-server. |
 
 ## Development
 
 ```bash
+uv sync --extra dev
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy src
@@ -202,4 +255,12 @@ uv run pytest
 uv build
 ```
 
-`evals/evals.json` and `okf-skill-workspace/grade.py` retain the existing skill-evaluation workflow. The OKF v0.1 specification remains vendored in `skills/okf-author/references/spec.md` under its upstream Apache 2.0 license.
+The test suite covers the core, CLI, provider protocols, staged writes, TUI, web service, LSP, importers, policies, and compatibility helpers. CI runs on macOS and Linux across Python 3.11–3.13.
+
+## Contributing
+
+Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), keep provider-independent behavior in the core, and include tests for user-visible changes. For security concerns, follow the private-reporting guidance in [docs/SECURITY.md](docs/SECURITY.md).
+
+## License
+
+A repository-wide license has not yet been declared. The vendored OKF v0.1 specification in `skills/okf-author/references/spec.md` retains its upstream Apache 2.0 license. Choose and add a project license before public distribution.

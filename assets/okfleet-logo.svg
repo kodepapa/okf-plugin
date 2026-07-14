@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="260" viewBox="0 0 960 260" role="img" aria-labelledby="title desc">
+  <title id="title">OKFleet</title>
+  <desc id="desc">A blue knowledge fleet mark beside the OKFleet wordmark</desc>
+  <defs>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071B3D"/>
+      <stop offset="1" stop-color="#0A2D68"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38BDF8"/>
+      <stop offset="0.52" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#F8FBFF"/>
+      <stop offset="0.33" stop-color="#DCEEFF"/>
+      <stop offset="0.34" stop-color="#60A5FA"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#020617" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <rect x="6" y="6" width="948" height="248" rx="42" fill="url(#panel)" stroke="#1E4E8C" stroke-width="2"/>
+  <circle cx="868" cy="44" r="74" fill="#0EA5E9" opacity="0.06"/>
+  <circle cx="906" cy="208" r="118" fill="#2563EB" opacity="0.07"/>
+
+  <g transform="translate(36 35)" filter="url(#shadow)">
+    <rect width="190" height="190" rx="48" fill="#06152F" stroke="#2563EB" stroke-width="3"/>
+    <path d="M41 137h111l-21 25H65z" fill="url(#mark)"/>
+    <path d="M67 55h67a9 9 0 0 1 9 9v63H58V64a9 9 0 0 1 9-9z" fill="#0C3270" stroke="#60A5FA" stroke-width="3"/>
+    <path d="M80 38h55a9 9 0 0 1 9 9v13H71V47a9 9 0 0 1 9-9z" fill="#1557B0" stroke="#38BDF8" stroke-width="3"/>
+    <path d="M84 76h35M84 91h45M84 106h27" stroke="#BAE6FD" stroke-width="5" stroke-linecap="round"/>
+    <path d="M29 126h29M35 143h19" stroke="#38BDF8" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+    <path d="M143 73l18 10v22l-18 10" fill="none" stroke="#38BDF8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="161" cy="83" r="6" fill="#7DD3FC"/>
+    <circle cx="161" cy="105" r="6" fill="#60A5FA"/>
+    <circle cx="143" cy="115" r="6" fill="#2563EB"/>
+  </g>
+
+  <g transform="translate(264 0)">
+    <text x="0" y="130" fill="url(#word)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="82" font-weight="800" letter-spacing="-4">OKFleet</text>
+    <text x="4" y="174" fill="#8CC8FF" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="19" font-weight="650" letter-spacing="3.3">OPEN KNOWLEDGE. ONE TERMINAL. EVERY BUNDLE.</text>
+    <path d="M4 196h482" stroke="#1D5CA8" stroke-width="2"/>
+    <circle cx="506" cy="196" r="5" fill="#38BDF8"/>
+    <circle cx="526" cy="196" r="5" fill="#2563EB"/>
+    <circle cx="546" cy="196" r="5" fill="#1D4ED8"/>
+  </g>
+</svg>

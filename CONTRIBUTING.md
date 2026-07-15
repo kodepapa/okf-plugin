@@ -8,6 +8,16 @@ Provider adapters must be testable from sanitized protocol fixtures without a li
 
 Changes to the standalone helper must be made in `skills/okf-author/scripts/okf.py`, synchronized with `python tools/sync_skill_helpers.py`, and verified with `python tools/verify_generated.py`.
 
+## Visual TUI QA
+
+Capture the real Textual compositor at wide and narrow terminal sizes without invoking an agent provider:
+
+```bash
+uv run python tools/capture_tui_audit.py --source examples --output dist/tui-audit
+```
+
+Open `dist/tui-audit/index.html` to compare the generated SVG states in one gallery.
+
 ## Commit messages and releases
 
 Use Conventional Commit subjects so Release Please can calculate the next version and generate useful release notes:

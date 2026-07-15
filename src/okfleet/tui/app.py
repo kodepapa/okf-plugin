@@ -96,19 +96,21 @@ class OKFleetApp(App[None]):
         self.chat_session: AgentSession | None = None
         self.chat_service: ChatService | None = None
         self.chat_transcript = (
-            "# Chat\n\nChoose a provider and ask about the selected bundle or fleet."
+            "Ask a read-only question across every bundle. Select a bundle to unlock staged work."
         )
         self.workspace: StagedWorkspace | None = None
         self.changeset: ChangeSet | None = None
         self._fleet_temp: tempfile.TemporaryDirectory[str] | None = None
         self._narrow = False
+        self._narrow_pane = "library"
         self._chat_open = False
+        self._focus_before_chat_id: str | None = None
         self._search_index_errors: dict[str, str] = {}
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
             yield Static(brand_text(), id="brand")
-            yield Static("OPEN KNOWLEDGE FORMAT WORKBENCH", id="product-label")
+            yield Static("OKF KNOWLEDGE WORKBENCH", id="product-label")
             yield Static("NORMAL", id="mode-indicator")
         with Horizontal(id="body"):
             with Vertical(id="sidebar"):
@@ -118,42 +120,42 @@ class OKFleetApp(App[None]):
                 yield Label("LOCAL + GLOBAL", id="scope-label")
                 yield VimTree("Bundles", id="bundle-tree")
             with Vertical(id="main"), TabbedContent(id="tabs"):
-                with TabPane("Document", id="concept-tab"):
+                with TabPane("Concept", id="concept-tab"):
                     yield VimMarkdown(
-                        "# Your OKF library\n\nChoose a bundle from the library, or press `/` "
-                        "to jump directly to knowledge.",
+                        "# Find knowledge\n\nj/k move · l expand · Enter open\n\n"
+                        "/ search every bundle · c chat with the current scope",
                         id="concept-view",
                     )
-                with TabPane("Checks", id="health-tab"):
+                with TabPane("Health", id="health-tab"):
                     yield VimMarkdown(
-                        "# Checks\n\nSelect a bundle to inspect its health.", id="health-view"
+                        "# Health\n\nSelect a bundle to inspect its health.", id="health-view"
                     )
-                with TabPane("Links", id="graph-tab"):
+                with TabPane("Graph", id="graph-tab"):
                     yield VimMarkdown(
-                        "# Links\n\nSelect a bundle or concept to inspect relationships.",
+                        "# Graph\n\nSelect a bundle or concept to inspect relationships.",
                         id="graph-view",
                     )
             with Vertical(id="chat-drawer", classes="hidden"):
                 with Horizontal(id="chat-header"):
-                    yield Static("CHAT", id="chat-title")
+                    yield Static("CHAT · ALL KNOWLEDGE", id="chat-title")
                     yield Static("Esc close", id="chat-close-hint")
                 with Horizontal(id="chat-controls"):
                     yield Select(
-                        [("Codex", "codex"), ("Claude Code", "claude")],
+                        [("Agent · Codex", "codex"), ("Agent · Claude Code", "claude")],
                         value="codex",
                         id="provider-select",
                         allow_blank=False,
                     )
                     yield Select(
-                        [("Read", "read"), ("Work · staged", "work")],
+                        [("Mode · Read-only", "read"), ("Mode · Work (staged)", "work")],
                         value="read",
                         id="mode-select",
                         allow_blank=False,
                     )
                 yield VimMarkdown(self.chat_transcript, id="chat-transcript")
                 yield Static("Ready", id="activity")
-                yield Input(placeholder="Ask OKFleet…", id="chat-input")
-                yield Static("Enter send  ·  Ctrl-G cancel  ·  Work stays staged", id="chat-hints")
+                yield Input(placeholder="Ask across all knowledge…", id="chat-input")
+                yield Static("Enter send  ·  Ctrl-G cancel  ·  staged writes only", id="chat-hints")
                 yield Static("", id="diff", classes="hidden")
                 yield Button(
                     "Apply staged changes",
@@ -163,7 +165,7 @@ class OKFleetApp(App[None]):
                     classes="hidden",
                 )
         yield Static(
-            "NORMAL   / search   c chat   H/L panes   1/2/3 views   ? help",
+            "j/k move  ·  Enter open  ·  / search  ·  c chat  ·  ? keys",
             id="status-bar",
         )
 
@@ -173,11 +175,44 @@ class OKFleetApp(App[None]):
         tree.show_root = False
         tree.root.expand()
         tree.focus()
+        self._narrow = self.size.width <= 88
+        self._sync_layout_classes()
 
     def on_resize(self, event: events.Resize) -> None:
+        was_narrow = self._narrow
         self._narrow = event.size.width <= 88
-        drawer = self.query_one("#chat-drawer", Vertical)
-        drawer.set_class(self._narrow, "full-screen")
+        if self._narrow and not was_narrow and not self._chat_open:
+            focused_id = self.focused.id if self.focused else None
+            self._narrow_pane = (
+                "content" if focused_id and focused_id != "bundle-tree" else "library"
+            )
+        self._sync_layout_classes()
+
+    def _sync_layout_classes(self) -> None:
+        body = self.query_one("#body", Horizontal)
+        body.set_class(self._narrow, "narrow")
+        body.set_class(self._chat_open, "chat-open")
+        body.set_class(self._narrow and self._narrow_pane == "library", "library-pane")
+        body.set_class(self._narrow and self._narrow_pane == "content", "content-pane")
+        self.query_one("#chat-drawer", Vertical).set_class(self._narrow, "full-screen")
+
+    def _show_narrow_pane(self, pane: str, *, focus: bool = True) -> None:
+        if not self._narrow:
+            return
+        self._narrow_pane = pane
+        self._sync_layout_classes()
+        if not focus:
+            return
+        if pane == "library":
+            self.query_one("#bundle-tree", VimTree).focus()
+            return
+        tabs = self.query_one("#tabs", TabbedContent)
+        view_id = {
+            "concept-tab": "#concept-view",
+            "health-tab": "#health-view",
+            "graph-tab": "#graph-view",
+        }.get(tabs.active, "#concept-view")
+        self.query_one(view_id, VimMarkdown).focus()
 
     def refresh_tree(self) -> None:
         tree = self.query_one("#bundle-tree", VimTree)
@@ -199,7 +234,10 @@ class OKFleetApp(App[None]):
             label = ref.alias if ref.available else f"{ref.alias}  [missing]"
             fleet_node.add(label, data=("bundle", ref), allow_expand=ref.available)
         tree.root.expand()
-        self.query_one("#library-count", Static).update(f"{len(self.refs)} bundles")
+        count = len(self.refs)
+        self.query_one("#library-count", Static).update(
+            f"{count} bundle{'s' if count != 1 else ''}"
+        )
         self._index_search_refs()
 
     def _index_search_refs(self) -> None:
@@ -258,14 +296,26 @@ class OKFleetApp(App[None]):
             self.selected_bundle = None
             self.selected_concept_id = None
             self.chat_session = None
+            self._set_chat_intro(
+                "Ask a read-only question across every bundle. "
+                "Select a bundle to unlock staged work."
+            )
             mode_select = self.query_one("#mode-select", Select)
             mode_select.value = "read"
             mode_select.disabled = True
             self.query_one("#scope-label", Label).update("ALL KNOWLEDGE · READ ONLY")
+            self.query_one("#chat-title", Static).update("CHAT · ALL KNOWLEDGE")
+            self.query_one("#chat-input", Input).placeholder = "Ask across all knowledge…"
             self.query_one("#concept-view", VimMarkdown).update(
                 "# Fleet\n\nAsk read-only questions across registered bundles. "
                 "Answers must use bundle-qualified citations."
             )
+            self._show_narrow_pane("content")
+
+    def _set_chat_intro(self, message: str) -> None:
+        self.chat_transcript = message
+        self.query_one("#chat-transcript", VimMarkdown).update(message)
+        self.query_one("#activity", Static).update("Ready")
 
     def open_bundle(self, ref: BundleRef) -> bool:
         if self.workspace and self.workspace.source_root != ref.path:
@@ -277,8 +327,13 @@ class OKFleetApp(App[None]):
                 return False
             self.workspace.close()
             self.workspace = None
-        if not self.selected_ref or self.selected_ref.id != ref.id:
+        scope_changed = not self.selected_ref or self.selected_ref.id != ref.id
+        if scope_changed:
             self.chat_session = None
+            self._set_chat_intro(
+                f"Ask a read-only question about **{ref.alias}**, or switch to staged work "
+                "to propose bundle changes."
+            )
         self.selected_ref = ref
         self.selected_bundle = load_bundle(ref.path)
         self.selected_concept_id = None
@@ -287,11 +342,14 @@ class OKFleetApp(App[None]):
         self.query_one("#scope-label", Label).update(
             f"{ref.alias} · {len(self.selected_bundle.concepts)} concepts"
         )
+        self.query_one("#chat-title", Static).update(f"CHAT · {ref.alias}")
+        self.query_one("#chat-input", Input).placeholder = f"Ask about {ref.alias}…"
         self.query_one("#concept-view", VimMarkdown).update(
             f"# {ref.alias}\n\n{len(self.selected_bundle.concepts)} concepts · OKF {self.selected_bundle.version or 'unspecified'}\n\nPath: `{ref.path}`"
         )
         self.update_health()
         self.update_graph()
+        self._show_narrow_pane("content")
         return True
 
     def open_concept(self, concept_id: str) -> None:
@@ -313,6 +371,7 @@ class OKFleetApp(App[None]):
         )
         self.query_one("#tabs", TabbedContent).active = "concept-tab"
         self.update_graph()
+        self._show_narrow_pane("content")
 
     def update_health(self) -> None:
         if not self.selected_bundle or not self.selected_ref:
@@ -530,22 +589,44 @@ class OKFleetApp(App[None]):
         self.call_after_refresh(tree.move_cursor, target)
 
     def action_focus_browse(self) -> None:
-        self.action_normal_mode()
-
-    def action_focus_chat(self) -> None:
-        drawer = self.query_one("#chat-drawer", Vertical)
-        self._chat_open = True
-        drawer.remove_class("hidden")
-        drawer.set_class(self._narrow, "full-screen")
-        self.query_one("#mode-indicator", Static).update("INSERT · CHAT")
-        self.query_one("#chat-input", Input).focus()
-
-    def action_normal_mode(self) -> None:
         if self._chat_open:
             self._chat_open = False
             self.query_one("#chat-drawer", Vertical).add_class("hidden")
         self.query_one("#mode-indicator", Static).update("NORMAL")
-        self.query_one("#bundle-tree", VimTree).focus()
+        self.query_one("#status-bar", Static).remove_class("chat-mode")
+        self._show_narrow_pane("library")
+        if not self._narrow:
+            self._sync_layout_classes()
+            self.query_one("#bundle-tree", VimTree).focus()
+
+    def action_focus_chat(self) -> None:
+        drawer = self.query_one("#chat-drawer", Vertical)
+        self._focus_before_chat_id = self.focused.id if self.focused else None
+        self._chat_open = True
+        drawer.remove_class("hidden")
+        self._sync_layout_classes()
+        self.query_one("#mode-indicator", Static).update("INSERT · CHAT")
+        self.query_one("#status-bar", Static).add_class("chat-mode")
+        self.query_one("#chat-input", Input).focus()
+
+    def action_normal_mode(self) -> None:
+        was_chat_open = self._chat_open
+        if was_chat_open:
+            self._chat_open = False
+            self.query_one("#chat-drawer", Vertical).add_class("hidden")
+        self.query_one("#mode-indicator", Static).update("NORMAL")
+        self.query_one("#status-bar", Static).remove_class("chat-mode")
+        self._sync_layout_classes()
+        if was_chat_open and self._focus_before_chat_id:
+            prior = self.query(f"#{self._focus_before_chat_id}").first()
+            if prior is not None:
+                prior.focus()
+                self._focus_before_chat_id = None
+                return
+        self._focus_before_chat_id = None
+        self._show_narrow_pane("library")
+        if not self._narrow:
+            self.query_one("#bundle-tree", VimTree).focus()
 
     def _pane_targets(self) -> list[Widget]:
         tabs = self.query_one("#tabs", TabbedContent)
@@ -563,6 +644,9 @@ class OKFleetApp(App[None]):
         return targets
 
     def _focus_relative_pane(self, offset: int) -> None:
+        if self._narrow and not self._chat_open:
+            self._show_narrow_pane("content" if offset > 0 else "library")
+            return
         targets = self._pane_targets()
         focused_id = self.focused.id if self.focused else None
         if focused_id == "bundle-tree":
@@ -593,6 +677,7 @@ class OKFleetApp(App[None]):
 
     def action_show_tab(self, tab_id: str) -> None:
         self.query_one("#tabs", TabbedContent).active = tab_id
+        self._show_narrow_pane("content")
 
     def action_validate(self) -> None:
         if not self.selected_bundle:

@@ -4,6 +4,10 @@
 
 - Renamed the canonical repository and plugin marketplace identity from `okf-plugin` to
   `okfleet`.
+- Added idempotent `discover --autoregister` batch registration with deterministic alias
+  collision handling.
+- Tightened CLI contracts, including scoped-search isolation, validated option choices, clean
+  registry errors, complete help summaries, and safe chat/index mode combinations.
 - Simplified the TUI into a focused two-pane library and document workspace with a compact
   Spotlight search and an on-demand, responsive chat drawer.
 - Added canonical `CLAUDE.md` and Claude project-skill symlinks while keeping shared agent

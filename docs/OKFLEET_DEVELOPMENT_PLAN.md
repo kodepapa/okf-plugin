@@ -431,7 +431,10 @@ Discovery must be conservative and explainable:
 8. Do not follow directory symlinks by default. An opt-in flag must still prevent cycles and root escape.
 9. Bound recursion by configurable depth and file count. Surface truncation rather than hiding it.
 
-Discovery never mutates or registers a path automatically. Registration is an explicit user action.
+Discovery is read-only by default. Registration remains an explicit user action:
+`okfleet discover --autoregister` (short form `-a`) registers every candidate returned by
+the scan. Repeated runs reuse registrations by canonical path, and alias collisions receive
+the next available numeric suffix without renaming existing bundles.
 
 ### 9.3 State locations
 
@@ -737,40 +740,48 @@ No automatic commit, push, or network action occurs. Direct mode is a later adva
 The executable with no subcommand opens the TUI. Core commands:
 
 ```text
-okfleet [PATH]
+okfleet
 okfleet tui [PATH]
+okfleet web [--host HOST] [--port PORT] [--path PATH] [--allow-remote]
+okfleet lsp
 okfleet doctor [--format text|json]
 
-okfleet discover [PATH] [--depth N] [--format text|json]
-okfleet bundles list|add|remove|rename|refresh
+okfleet discover [PATH] [--depth N] [--format text|json] [--autoregister|-a]
+okfleet bundles list|add|remove|rename|refresh|clone|update
 okfleet collections list|create|add|remove|delete
+okfleet searches list|save|run|delete
 
 okfleet list BUNDLE [--type TYPE] [--tag TAG] [--format text|json|jsonl]
 okfleet show BUNDLE:CONCEPT [--source]
-okfleet search QUERY [--bundle ALIAS] [--collection NAME] [--format ...]
-okfleet links BUNDLE:CONCEPT [--inbound|--outbound|--broken]
+okfleet search QUERY [--bundle ALIAS] [--collection NAME] [--semantic] [--format ...]
+okfleet links BUNDLE:CONCEPT [--direction both|inbound|outbound]
 okfleet graph SCOPE [--depth N] [--format mermaid|dot|json]
+okfleet status BUNDLE [--diff] [--format text|json]
+okfleet compare LEFT RIGHT [--format text|json]
 
-okfleet validate BUNDLE [--format text|json|sarif]
-okfleet health BUNDLE [--stale-after DAYS] [--format ...]
-okfleet index BUNDLE [--write|--check] [--force]
+okfleet validate BUNDLE [--format text|json|sarif] [--policy PATH]
+okfleet health BUNDLE [--stale-after DAYS] [--format ...] [--policy PATH]
+okfleet index BUNDLE [--write|--check]
 okfleet watch BUNDLE
 
-okfleet new BUNDLE CONCEPT_ID --type TYPE [--title TITLE]
-okfleet move BUNDLE:OLD_ID NEW_ID [--update-links] [--dry-run]
-okfleet apply CHANGESET_ID
+okfleet import SOURCE BUNDLE --kind KIND [--write] [--replace]
+okfleet new BUNDLE CONCEPT_ID --type TYPE [--title TITLE] [--write]
+okfleet move BUNDLE:OLD_ID NEW_ID [--update-links|--no-update-links] [--write]
+okfleet apply CHANGESET_ID [--allow-invalid]
 
-okfleet chat [SCOPE] [--provider codex|claude] [--mode read|work]
+okfleet chat QUESTION [--scope SCOPE] [--provider codex|claude] [--mode read|work]
 okfleet sessions list|resume|delete
+okfleet changesets list|show|delete
 
-okfleet mcp serve [--scope ...] [--transport stdio]
+okfleet mcp serve [--registry-path PATH] [--database-path PATH] [--bundle ALIAS]
+okfleet mcp config [--command COMMAND]
 okfleet cache status|rebuild|clear
-okfleet completion bash|zsh|fish|powershell
 ```
 
 Rules:
 
-- Mutating commands support `--dry-run` when meaningful.
+- Bundle-content mutation commands preview by default where meaningful and require `--write`;
+  registry-management commands are explicit mutations.
 - Machine formats write only data to stdout; progress/errors go to stderr.
 - Stable exit codes distinguish success, diagnostics found, invalid invocation, unavailable provider, and internal error.
 - JSON records carry a `schema_version`.

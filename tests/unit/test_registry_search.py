@@ -42,6 +42,33 @@ def test_registry_roundtrip(bundle_path: Path, tmp_path: Path) -> None:
     assert not BundleRegistry(config).list()
 
 
+def test_registry_add_many_is_idempotent_and_preflights_every_path(tmp_path: Path) -> None:
+    config = tmp_path / "config.toml"
+    first = tmp_path / "one" / "knowledge"
+    second = tmp_path / "two" / "knowledge"
+    third = tmp_path / "three" / "knowledge"
+    for path in (first, second, third):
+        path.mkdir(parents=True)
+
+    registry = BundleRegistry(config)
+    original = registry.add(first)
+    results = registry.add_many([(first, None), (second, None), (third, None)])
+
+    assert [(item.alias, added) for item, added in results] == [
+        ("knowledge", False),
+        ("knowledge-2", True),
+        ("knowledge-3", True),
+    ]
+    assert results[0][0].id == original.id
+    assert len(BundleRegistry(config).list()) == 3
+
+    candidate = tmp_path / "four" / "knowledge"
+    candidate.mkdir(parents=True)
+    with pytest.raises(ValueError, match="does not exist"):
+        registry.add_many([(candidate, None), (tmp_path / "missing", None)])
+    assert len(BundleRegistry(config).list()) == 3
+
+
 @pytest.mark.skipif(os.name == "nt", reason="POSIX file modes are not available")
 def test_registry_and_search_state_files_are_private(bundle_path: Path, tmp_path: Path) -> None:
     config = tmp_path / "config.toml"

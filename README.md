@@ -84,9 +84,11 @@ uv run okfleet
 Running `okfleet` without a subcommand opens the TUI in the current directory.
 
 ```bash
-# Find and register knowledge
+# Preview discovered knowledge without changing the global registry
 okfleet discover ~/work
-okfleet bundles add ~/work/knowledge/warehouse --alias warehouse
+
+# Explicitly register every discovered bundle
+okfleet discover ~/work --autoregister
 okfleet bundles refresh
 
 # Search and inspect
@@ -99,6 +101,10 @@ okfleet validate warehouse
 okfleet health warehouse --stale-after 180
 okfleet index warehouse --write
 ```
+
+`discover` is read-only by default. Pass `--autoregister` (or `-a`) when you want
+the discovered paths added to the global registry; repeated runs keep existing
+registrations and aliases intact.
 
 Once published, the intended zero-install entry point is `uvx okfleet`.
 

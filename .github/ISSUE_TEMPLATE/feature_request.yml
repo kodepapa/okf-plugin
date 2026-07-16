@@ -21,10 +21,15 @@ body:
     id: alternatives
     attributes:
       label: Alternatives considered
-  - type: checkboxes
-    id: safety
+  - type: textarea
+    id: scope
     attributes:
-      label: Safety model
+      label: Scope and safety impact
+      description: Which surfaces would change? Note any effect on read-only fleet chat, staged writes, privacy, compatibility, or extension points.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
       options:
-        - label: This preserves read-only fleet chat and staged-by-default writes.
+        - label: I searched existing issues and requests for the same idea.
           required: true

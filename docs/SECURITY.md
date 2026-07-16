@@ -6,8 +6,11 @@ OKFleet is local-first. Bundle sources, indexes, registry metadata, session mapp
 
 | Version | Supported |
 |---|---|
-| `0.5.x` | Yes |
-| `< 0.5` | No |
+| Latest minor release | Yes |
+| Older releases | No |
+
+Security fixes target the latest published minor line. Upgrade to the latest GitHub release
+before reporting behavior that occurs only on an older version.
 
 ## Trust boundaries
 

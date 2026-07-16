@@ -1,0 +1,32 @@
+name: Documentation report
+description: Report missing, incorrect, or unclear OKFleet documentation
+title: "docs: "
+labels: [documentation]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Documentation location
+      description: Link to the page or name the file, command help, or TUI screen.
+      placeholder: README.md, `okfleet search --help`, or a URL
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is incorrect or unclear?
+      description: Quote only the smallest relevant excerpt and remove private information.
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: Suggested improvement
+      description: Explain what you expected to learn or propose replacement wording.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I checked the current `main` branch and searched existing issues.
+          required: true

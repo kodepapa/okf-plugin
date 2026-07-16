@@ -1,16 +1,22 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "bootstrap-sha": "6ecf0de131fe071f70f1dce27cf928c4a81eaf2a",
+  "bootstrap-sha": "40e4541ba95200ba2cd2651bdd33ec6a3ec010bc",
   "packages": {
     ".": {
       "release-type": "python",
       "package-name": "okfleet",
       "include-component-in-tag": false,
+      "include-v-in-tag": true,
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         {
           "type": "generic",
           "path": "src/okfleet/__init__.py"
+        },
+        {
+          "type": "toml",
+          "path": "uv.lock",
+          "jsonpath": "$.package[?(@.name==\"okfleet\")].version"
         },
         {
           "type": "json",

@@ -100,9 +100,7 @@ def test_index_preview_emits_an_unwrapped_unified_diff(bundle_path: Path) -> Non
 def test_mcp_config_remains_valid_json_with_a_long_command() -> None:
     command = "/a/" + "very-long-directory/" * 8 + "okfleet"
 
-    result = runner.invoke(
-        app, ["mcp", "config", "--command", command], terminal_width=40
-    )
+    result = runner.invoke(app, ["mcp", "config", "--command", command], terminal_width=40)
 
     assert result.exit_code == 0, result.output
     assert json.loads(result.stdout)["mcpServers"]["okfleet"]["command"] == command

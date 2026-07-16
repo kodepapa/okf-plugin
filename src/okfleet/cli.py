@@ -173,7 +173,9 @@ def _search_snippet(snippet: str, query: str) -> Text:
     clean = " ".join(clean.split())
     rendered = Text(clean)
     if terms:
-        pattern = "|".join(re.escape(term) + r"\w*" for term in sorted(terms, key=len, reverse=True))
+        pattern = "|".join(
+            re.escape(term) + r"\w*" for term in sorted(terms, key=len, reverse=True)
+        )
         rendered.highlight_regex(rf"(?i)\b(?:{pattern})\b", style="bold cyan")
     return rendered
 
@@ -626,9 +628,7 @@ def search(
         if index:
             _raw_output("\n")
         _raw_output(hit.citation, end="\n")
-        console.print(
-            Padding(Text(f"{hit.concept_type or '?'} · {hit.description}"), (0, 0, 0, 2))
-        )
+        console.print(Padding(Text(f"{hit.concept_type or '?'} · {hit.description}"), (0, 0, 0, 2)))
         console.print(Padding(_search_snippet(hit.snippet, query), (0, 0, 0, 2)))
 
 

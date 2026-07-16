@@ -1,4 +1,5 @@
 .DS_Store
+Thumbs.db
 .venv/
 __pycache__/
 *.py[cod]
@@ -6,9 +7,20 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
+.hypothesis/
+.nox/
+.tox/
 dist/
 build/
 *.egg-info/
+.env
+.env.*
+!.env.example
+*.log
+*.swp
+*~
 okf-skill-workspace/*
 !okf-skill-workspace/grade.py

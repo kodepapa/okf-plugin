@@ -5,23 +5,35 @@ build-backend = "hatchling.build"
 [project]
 name = "okfleet"
 version = "0.5.0"
-description = "The terminal workbench for a fleet of Open Knowledge Format bundles"
+description = "The local-first developer workbench for Open Knowledge Format bundles"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "kodepapa" }]
-keywords = ["okf", "knowledge", "tui", "codex", "claude", "agent-skills"]
+keywords = [
+  "agent-skills",
+  "claude",
+  "codex",
+  "knowledge-management",
+  "mcp",
+  "okf",
+  "open-knowledge-format",
+  "tui",
+]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Environment :: Console",
   "Intended Audience :: Developers",
   "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries :: Python Modules",
   "Topic :: Documentation",
+  "Typing :: Typed",
 ]
 dependencies = [
   "mcp>=1.6",
@@ -59,6 +71,12 @@ packages = ["src/okfleet"]
 [tool.hatch.build.targets.wheel.force-include]
 "skills" = "okfleet/provider_plugin/skills"
 ".claude-plugin" = "okfleet/provider_plugin/.claude-plugin"
+
+# Hatch normally follows the checked-in `.claude/skills` symlinks and then omits
+# their canonical targets from the sdist. The wheel is built from the sdist, so
+# force the canonical skills back in to keep `uv build` reproducible.
+[tool.hatch.build.targets.sdist.force-include]
+"skills" = "skills"
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"

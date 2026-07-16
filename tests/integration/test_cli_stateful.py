@@ -42,9 +42,7 @@ class FakeProvider:
             metadata=metadata or {},
         )
 
-    async def send(
-        self, session: AgentSession, message: str
-    ) -> AsyncIterator[AgentEvent]:
+    async def send(self, session: AgentSession, message: str) -> AsyncIterator[AgentEvent]:
         self.prompts.append(message)
         if self.staged_addition and session.mode == SessionMode.BUNDLE_WORK_STAGED:
             concept = session.cwd / "metrics/revenue.md"
@@ -67,9 +65,7 @@ def test_fleet_chat_and_session_lifecycle_use_a_provider_without_live_calls(
     )
     session_id = "00000000-0000-0000-0000-000000000001"
     listed = runner.invoke(app, ["sessions", "list"])
-    resumed = runner.invoke(
-        app, ["sessions", "resume", session_id, "follow up"]
-    )
+    resumed = runner.invoke(app, ["sessions", "resume", session_id, "follow up"])
     deleted = runner.invoke(app, ["sessions", "delete", session_id])
 
     assert chatted.exit_code == 0, chatted.output
@@ -92,18 +88,14 @@ def test_work_chat_changeset_show_apply_and_delete_are_complete_cli_workflows(
     provider = FakeProvider(staged_addition=first_addition)
     monkeypatch.setattr("okfleet.cli.provider_for", lambda *_args, **_kwargs: provider)
 
-    staged = runner.invoke(
-        app, ["chat", "edit it", "--scope", "main", "--mode", "work"]
-    )
+    staged = runner.invoke(app, ["chat", "edit it", "--scope", "main", "--mode", "work"])
     manifests = PendingChangeStore().list()
     assert staged.exit_code == 0, staged.output
     assert len(manifests) == 1
     changeset_id = str(manifests[0]["id"])
 
     listed = runner.invoke(app, ["changesets", "list"])
-    shown = runner.invoke(
-        app, ["changesets", "show", changeset_id], terminal_width=40
-    )
+    shown = runner.invoke(app, ["changesets", "show", changeset_id], terminal_width=40)
     applied = runner.invoke(app, ["apply", changeset_id])
 
     assert listed.exit_code == 0, listed.output
@@ -118,9 +110,7 @@ def test_work_chat_changeset_show_apply_and_delete_are_complete_cli_workflows(
 
     second_addition = "\nthis staged change must be discarded\n"
     provider.staged_addition = second_addition
-    staged_again = runner.invoke(
-        app, ["chat", "edit again", "--scope", "main", "--mode", "work"]
-    )
+    staged_again = runner.invoke(app, ["chat", "edit again", "--scope", "main", "--mode", "work"])
     second_id = str(PendingChangeStore().list()[0]["id"])
     deleted = runner.invoke(app, ["changesets", "delete", second_id])
 

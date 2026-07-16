@@ -42,10 +42,11 @@ def _command_at(path: tuple[str, ...]) -> click.Command:
 )
 def test_every_registered_command_generates_help(command_path: tuple[str, ...]) -> None:
     result = runner.invoke(cli, [*command_path, "--help"])
+    output = click.unstyle(result.output)
 
     assert result.exit_code == 0, result.output
-    assert "Usage:" in result.output
-    assert "--help" in result.output
+    assert "Usage:" in output
+    assert "--help" in output
 
 
 @pytest.mark.parametrize(
@@ -97,8 +98,9 @@ def test_invalid_choice_values_fail_during_parsing(
     option: str,
 ) -> None:
     result = runner.invoke(cli, arguments)
+    output = click.unstyle(result.output)
 
     assert result.exit_code == 2, result.output
-    assert "Invalid value" in result.output
-    assert option in result.output
-    assert "Traceback" not in result.output
+    assert "Invalid value" in output
+    assert option in output
+    assert "Traceback" not in output

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 import pytest
+from click import unstyle
 from typer.testing import CliRunner
 
 from okfleet.cli import app
@@ -256,9 +257,9 @@ def test_chat_rejects_nonsensical_modes_before_starting_provider() -> None:
     read_apply = runner.invoke(app, ["chat", "question", "--scope", "bundle", "--apply"])
 
     assert fleet_work.exit_code == 2, fleet_work.output
-    assert "fleet scope is read-only" in fleet_work.output
+    assert "fleet scope is read-only" in unstyle(fleet_work.output)
     assert read_apply.exit_code == 2, read_apply.output
-    assert "--apply requires bundle work mode" in read_apply.output
+    assert "--apply requires bundle work mode" in unstyle(read_apply.output)
 
 
 def test_index_rejects_write_and_check_together(bundle_path: Path) -> None:

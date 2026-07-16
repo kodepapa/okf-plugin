@@ -156,23 +156,50 @@ class BundleRegistry:
         )
 
     def add(self, path: Path, alias: str | None = None) -> BundleRef:
-        resolved = path.expanduser().resolve()
-        if not resolved.is_dir():
-            raise ValueError(f"bundle directory does not exist: {resolved}")
-        existing_path = next((item for item in self._bundles if item.path == resolved), None)
-        if existing_path:
-            return existing_path
-        base = slugify(alias or resolved.name)
-        candidate = base
-        counter = 2
-        used = {item.alias for item in self._bundles}
-        while candidate in used:
-            candidate = f"{base}-{counter}"
-            counter += 1
-        ref = BundleRef(str(uuid.uuid4()), candidate, resolved)
-        self._bundles.append(ref)
-        self.save()
-        return ref
+        registrations = self.add_many([(path, alias)])
+        return registrations[0][0]
+
+    def add_many(
+        self, entries: Iterable[tuple[Path, str | None]]
+    ) -> builtins.list[tuple[BundleRef, bool]]:
+        """Register paths in one atomic config update.
+
+        Each result contains the canonical registry reference and whether it was newly
+        registered. Existing paths keep their IDs, aliases, collections, and remote metadata.
+        """
+        prepared = [(path.expanduser().resolve(), alias) for path, alias in entries]
+        for resolved, _alias in prepared:
+            if not resolved.is_dir():
+                raise ValueError(f"bundle directory does not exist: {resolved}")
+
+        original = list(self._bundles)
+        results: builtins.list[tuple[BundleRef, bool]] = []
+        added = False
+        try:
+            for resolved, alias in prepared:
+                existing_path = next(
+                    (item for item in self._bundles if item.path == resolved), None
+                )
+                if existing_path:
+                    results.append((existing_path, False))
+                    continue
+                base = slugify(alias or resolved.name)
+                candidate = base
+                counter = 2
+                used = {item.alias for item in self._bundles}
+                while candidate in used:
+                    candidate = f"{base}-{counter}"
+                    counter += 1
+                ref = BundleRef(str(uuid.uuid4()), candidate, resolved)
+                self._bundles.append(ref)
+                results.append((ref, True))
+                added = True
+            if added:
+                self.save()
+        except Exception:
+            self._bundles = original
+            raise
+        return results
 
     def remove(self, alias_or_id: str) -> BundleRef:
         ref = self.get(alias_or_id)

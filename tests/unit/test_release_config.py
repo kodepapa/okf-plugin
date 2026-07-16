@@ -17,11 +17,21 @@ def test_release_please_tracks_every_public_version() -> None:
     manifest = json.loads((ROOT / ".release-please-manifest.json").read_text(encoding="utf-8"))
     codex = json.loads((ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
     claude = json.loads((ROOT / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+    locked_packages = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))["package"]
+    locked_version = next(
+        package["version"] for package in locked_packages if package["name"] == "okfleet"
+    )
     init = (ROOT / "src/okfleet/__init__.py").read_text(encoding="utf-8")
     init_version = re.search(r'__version__ = "([^"]+)"', init)
 
     assert init_version is not None
-    assert {manifest["."], codex["version"], claude["version"], init_version.group(1)} == {version}
+    assert {
+        manifest["."],
+        codex["version"],
+        claude["version"],
+        locked_version,
+        init_version.group(1),
+    } == {version}
 
 
 def test_release_please_config_and_workflow_are_wired() -> None:
@@ -33,13 +43,42 @@ def test_release_please_config_and_workflow_are_wired() -> None:
     )
 
     assert package["release-type"] == "python"
-    assert re.fullmatch(r"[0-9a-f]{40}", config["bootstrap-sha"])
+    assert config["bootstrap-sha"] == "40e4541ba95200ba2cd2651bdd33ec6a3ec010bc"
+    assert package["include-v-in-tag"] is True
+    assert package["include-component-in-tag"] is False
     assert extra_paths == {
         "src/okfleet/__init__.py",
         ".codex-plugin/plugin.json",
         ".claude-plugin/plugin.json",
+        "uv.lock",
     }
-    assert "release-please" in workflow["jobs"]
+    uv_lock = next(item for item in package["extra-files"] if item["path"] == "uv.lock")
+    assert uv_lock == {
+        "type": "toml",
+        "path": "uv.lock",
+        "jsonpath": '$.package[?(@.name=="okfleet")].version',
+    }
+    assert set(workflow["jobs"]) == {"release-please"}
+    workflow_text = (ROOT / ".github/workflows/release-please.yml").read_text(encoding="utf-8")
+    assert "secrets.RELEASE_PLEASE_TOKEN || github.token" in workflow_text
+    assert "steps.release.outputs.release_created" in workflow_text
+    assert "gh release upload" in workflow_text
+
+
+def test_ci_has_one_quality_gate_and_a_minimal_compatibility_matrix() -> None:
+    workflow = YAML(typ="safe").load(
+        (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    )
+
+    assert workflow["on"]["push"]["branches"] == ["main"]
+    assert workflow["on"]["pull_request"]["branches"] == ["main"]
+    assert set(workflow["jobs"]) == {"quality", "compatibility"}
+    matrix = workflow["jobs"]["compatibility"]["strategy"]["matrix"]["include"]
+    assert {(item["os"], item["python"]) for item in matrix} == {
+        ("ubuntu-latest", "3.11"),
+        ("ubuntu-latest", "3.12"),
+        ("macos-latest", "3.13"),
+    }
 
 
 def test_workflows_pin_actions_and_ci_uses_the_lockfile() -> None:

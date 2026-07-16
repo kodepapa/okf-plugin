@@ -17,31 +17,31 @@ repos:
     hooks:
       - id: okfleet-ruff
         name: Ruff lint
-        entry: uv run ruff check --force-exclude
+        entry: uv run --locked ruff check --force-exclude
         language: system
         types: [python]
       - id: okfleet-format
         name: Ruff format
-        entry: uv run ruff format --check --force-exclude
+        entry: uv run --locked ruff format --check --force-exclude
         language: system
         types: [python]
       - id: okfleet-mypy
         name: Mypy
-        entry: uv run mypy src
+        entry: uv run --locked mypy src
         language: system
         pass_filenames: false
       - id: okfleet-demo-validate
         name: Validate OKFleet demo bundle
-        entry: uv run okfleet validate examples/demo-bundle
+        entry: uv run --locked okfleet validate examples/demo-bundle
         language: system
         pass_filenames: false
       - id: okfleet-demo-index
         name: Check OKFleet demo indexes
-        entry: uv run okfleet index examples/demo-bundle --check
+        entry: uv run --locked okfleet index examples/demo-bundle --check
         language: system
         pass_filenames: false
       - id: okfleet-generated
         name: Verify generated OKF helpers
-        entry: uv run python tools/verify_generated.py
+        entry: uv run --locked python tools/verify_generated.py
         language: system
         pass_filenames: false

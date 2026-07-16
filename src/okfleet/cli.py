@@ -3,16 +3,20 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import sys
 import tempfile
 from collections import Counter
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any
 
 import typer
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.padding import Padding
 from rich.table import Table
+from rich.text import Text
 from watchfiles import watch
 
 from . import __version__
@@ -74,6 +78,46 @@ console = Console()
 error_console = Console(stderr=True)
 
 
+class TextJsonFormat(StrEnum):
+    TEXT = "text"
+    JSON = "json"
+
+
+class ConceptListFormat(StrEnum):
+    TEXT = "text"
+    JSON = "json"
+    JSONL = "jsonl"
+
+
+class ValidationFormat(StrEnum):
+    TEXT = "text"
+    JSON = "json"
+    SARIF = "sarif"
+
+
+class GraphFormat(StrEnum):
+    MERMAID = "mermaid"
+    DOT = "dot"
+    JSON = "json"
+
+
+class LinkDirection(StrEnum):
+    BOTH = "both"
+    OUTBOUND = "outbound"
+    INBOUND = "inbound"
+
+
+class ChatMode(StrEnum):
+    READ = "read"
+    WORK = "work"
+
+
+class ProviderName(StrEnum):
+    CODEX = "codex"
+    CLAUDE = "claude"
+    CLAUDE_CODE = "claude-code"
+
+
 def _registry(path: Path | None = None) -> BundleRegistry:
     return BundleRegistry(path)
 
@@ -91,7 +135,14 @@ def _plugin_root() -> Path | None:
 
 
 def _json(data: Any) -> None:
-    console.print_json(json.dumps(data, default=str))
+    _raw_output(json.dumps(data, default=str, indent=2), end="\n")
+
+
+def _raw_output(text: str, *, end: str = "") -> None:
+    """Write structured or source output without Rich interpreting or wrapping it."""
+    sys.stdout.write(text)
+    sys.stdout.write(end)
+    sys.stdout.flush()
 
 
 def _ref(value: str, registry_path: Path | None = None) -> BundleRef:
@@ -100,6 +151,33 @@ def _ref(value: str, registry_path: Path | None = None) -> BundleRef:
     except ValueError as exc:
         error_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(2) from exc
+
+
+def _search_snippet(snippet: str, query: str) -> Text:
+    """Turn FTS match markers and Markdown links into a compact readable excerpt."""
+    terms = {
+        token.casefold().rstrip("*")
+        for token in re.findall(r"[\w-]+\*?", query)
+        if token.rstrip("*")
+    }
+
+    def unmark(match: re.Match[str]) -> str:
+        value = match.group(1)
+        folded = value.casefold()
+        if any(folded == term or folded.startswith(term) for term in terms):
+            return value
+        return match.group(0)
+
+    clean = re.sub(r"\[([^\[\]\n]+)\]", unmark, snippet)
+    clean = re.sub(r"\[([^\]\n]+)\]\([^\n)]+\)", r"\1", clean)
+    clean = " ".join(clean.split())
+    rendered = Text(clean)
+    if terms:
+        pattern = "|".join(
+            re.escape(term) + r"\w*" for term in sorted(terms, key=len, reverse=True)
+        )
+        rendered.highlight_regex(rf"(?i)\b(?:{pattern})\b", style="bold cyan")
+    return rendered
 
 
 def _diagnostic_table(diagnostics: list[Diagnostic], root: Path) -> Table:
@@ -193,7 +271,7 @@ def tui(path: Annotated[Path | None, typer.Argument()] = None) -> None:
 @app.command()
 def web(
     host: Annotated[str, typer.Option(help="Address to bind.")] = "127.0.0.1",
-    port: Annotated[int, typer.Option(help="TCP port to bind.")] = 8765,
+    port: Annotated[int, typer.Option(help="TCP port to bind.", min=0, max=65535)] = 8765,
     local_root: Annotated[
         Path | None, typer.Option("--path", help="Also discover bundles below this path.")
     ] = None,
@@ -228,23 +306,85 @@ def lsp() -> None:
 def discover(
     path: Annotated[Path | None, typer.Argument()] = None,
     depth: Annotated[int, typer.Option("--depth", min=0, max=20)] = 5,
-    format: Annotated[str, typer.Option("--format")] = "text",
+    format: Annotated[TextJsonFormat, typer.Option("--format")] = TextJsonFormat.TEXT,
+    autoregister: Annotated[
+        bool,
+        typer.Option(
+            "--autoregister",
+            "--auto-register",
+            "-a",
+            "-autoregister",
+            help="Add every discovered bundle to the global registry.",
+        ),
+    ] = False,
 ) -> None:
-    """Discover likely OKF bundle roots without registering them."""
-    refs = discover_bundles(path or Path.cwd(), max_depth=depth)
-    if format == "json":
-        _json({"schema_version": 1, "bundles": [ref.to_dict() for ref in refs]})
+    """Discover likely OKF bundle roots; registration is opt-in."""
+    try:
+        refs = discover_bundles(path or Path.cwd(), max_depth=depth)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="PATH") from exc
+
+    records = [ref.to_dict() for ref in refs]
+    registered_count = 0
+    already_registered_count = 0
+    if autoregister and refs:
+        try:
+            registrations = _registry().add_many((ref.path, None) for ref in refs)
+        except (OSError, ValueError) as exc:
+            error_console.print(f"[red]error:[/] could not update registry: {exc}")
+            raise typer.Exit(2) from exc
+        records = []
+        for discovered, (registered, added) in zip(refs, registrations, strict=True):
+            record = registered.to_dict()
+            record.update(
+                {
+                    "confidence": discovered.confidence,
+                    "reason": discovered.reason,
+                    "registration": "registered" if added else "already-registered",
+                }
+            )
+            records.append(record)
+            registered_count += int(added)
+            already_registered_count += int(not added)
+
+    if format == TextJsonFormat.JSON:
+        _json(
+            {
+                "schema_version": 1,
+                "autoregister": autoregister,
+                "registered_count": registered_count,
+                "already_registered_count": already_registered_count,
+                "bundles": records,
+            }
+        )
         return
-    table = Table("Alias", "Path", "Confidence", "Reason")
-    for ref in refs:
-        table.add_row(ref.alias, str(ref.path), ref.confidence, ref.reason)
+    if not refs:
+        console.print("No OKF bundles found.")
+        return
+    columns = ["Alias", "Path", "Confidence", "Reason"]
+    if autoregister:
+        columns.append("Registration")
+    table = Table(*columns)
+    for ref, record in zip(refs, records, strict=True):
+        row = [str(record["alias"]), str(record["path"]), ref.confidence, ref.reason]
+        if autoregister:
+            row.append(str(record["registration"]))
+        table.add_row(*row)
     console.print(table)
+    if autoregister:
+        console.print(
+            f"Registered {registered_count} new bundle(s); "
+            f"{already_registered_count} already registered."
+        )
 
 
 @bundles_app.command("list")
-def bundles_list(format: Annotated[str, typer.Option("--format")] = "text") -> None:
+def bundles_list(
+    format: Annotated[TextJsonFormat, typer.Option("--format")] = TextJsonFormat.TEXT,
+) -> None:
+    """List globally registered bundles and their availability."""
     refs = _registry().list()
-    if format == "json":
+    if format == TextJsonFormat.JSON:
         _json({"schema_version": 1, "bundles": [ref.to_dict() for ref in refs]})
         return
     table = Table("Alias", "Path", "Status")
@@ -255,13 +395,21 @@ def bundles_list(format: Annotated[str, typer.Option("--format")] = "text") -> N
 
 @bundles_app.command("add")
 def bundles_add(path: Path, alias: Annotated[str | None, typer.Option("--alias")] = None) -> None:
-    ref = _registry().add(path, alias)
+    """Register an existing local bundle without changing its files."""
+    try:
+        ref = _registry().add(path, alias)
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc), param_hint="PATH") from exc
     console.print(f"Registered [bold]{ref.alias}[/] → {ref.path}")
 
 
 @bundles_app.command("remove")
 def bundles_remove(alias: str) -> None:
-    ref = _registry().remove(alias)
+    """Forget a registered bundle without deleting its files."""
+    try:
+        ref = _registry().remove(alias)
+    except KeyError as exc:
+        raise typer.BadParameter(f"unknown bundle: {alias}", param_hint="ALIAS") from exc
     with SearchDatabase() as database:
         database.remove_bundle(ref.id)
     console.print(f"Removed [bold]{ref.alias}[/] from the registry (bundle files were untouched).")
@@ -269,12 +417,19 @@ def bundles_remove(alias: str) -> None:
 
 @bundles_app.command("rename")
 def bundles_rename(alias: str, new_alias: str) -> None:
-    ref = _registry().rename(alias, new_alias)
+    """Change a bundle's registry alias."""
+    try:
+        ref = _registry().rename(alias, new_alias)
+    except KeyError as exc:
+        raise typer.BadParameter(f"unknown bundle: {alias}", param_hint="ALIAS") from exc
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="NEW_ALIAS") from exc
     console.print(f"Renamed bundle alias to [bold]{ref.alias}[/].")
 
 
 @bundles_app.command("refresh")
 def bundles_refresh() -> None:
+    """Refresh the derived search index for every available bundle."""
     total = 0
     with SearchDatabase() as database:
         for ref in _registry().list():
@@ -317,6 +472,7 @@ def bundles_update(alias: str) -> None:
 
 @collections_app.command("list")
 def collections_list() -> None:
+    """List named collections and their registered bundle aliases."""
     registry = _registry()
     table = Table("Collection", "Bundles")
     for name, ids in sorted(registry.collections.items()):
@@ -329,12 +485,19 @@ def collections_list() -> None:
 def collections_create(
     name: str, bundles: Annotated[list[str] | None, typer.Argument()] = None
 ) -> None:
-    _registry().create_collection(name, bundles or [])
+    """Create a collection, optionally with initial bundle members."""
+    try:
+        _registry().create_collection(name, bundles or [])
+    except KeyError as exc:
+        raise typer.BadParameter(f"unknown bundle: {exc.args[0]}") from exc
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="NAME") from exc
     console.print(f"Created collection [bold]{name}[/].")
 
 
 @collections_app.command("add")
 def collections_add(name: str, bundle: str) -> None:
+    """Add a registered bundle to a collection."""
     registry = _registry()
     try:
         ref = registry.add_to_collection(name, bundle)
@@ -345,6 +508,7 @@ def collections_add(name: str, bundle: str) -> None:
 
 @collections_app.command("remove")
 def collections_remove(name: str, bundle: str) -> None:
+    """Remove a bundle from a collection."""
     registry = _registry()
     try:
         ref = registry.remove_from_collection(name, bundle)
@@ -355,6 +519,7 @@ def collections_remove(name: str, bundle: str) -> None:
 
 @collections_app.command("delete")
 def collections_delete(name: str) -> None:
+    """Delete a collection without changing its bundles."""
     registry = _registry()
     if name not in registry.collections:
         raise typer.BadParameter(f"unknown collection: {name}")
@@ -368,8 +533,9 @@ def list_concepts(
     bundle: str,
     concept_type: Annotated[str | None, typer.Option("--type")] = None,
     tag: Annotated[str | None, typer.Option("--tag")] = None,
-    format: Annotated[str, typer.Option("--format")] = "text",
+    format: Annotated[ConceptListFormat, typer.Option("--format")] = ConceptListFormat.TEXT,
 ) -> None:
+    """List and filter concepts in one bundle."""
     ref = _ref(bundle)
     loaded = load_bundle(ref.path)
     concepts = [
@@ -379,11 +545,11 @@ def list_concepts(
         and (not tag or tag in concept.tags)
     ]
     concepts.sort(key=lambda item: item.concept_id)
-    if format in {"json", "jsonl"}:
+    if format in {ConceptListFormat.JSON, ConceptListFormat.JSONL}:
         records = [item.summary_dict(ref.alias) for item in concepts]
-        if format == "jsonl":
+        if format == ConceptListFormat.JSONL:
             for record in records:
-                console.print(json.dumps(record, default=str))
+                _raw_output(json.dumps(record, default=str), end="\n")
         else:
             _json({"schema_version": 1, "concepts": records})
         return
@@ -403,7 +569,10 @@ def show(reference: str, source: Annotated[bool, typer.Option("--source")] = Fal
     concept = load_bundle(ref.path).get(concept_id)
     if not concept:
         raise typer.BadParameter(f"unknown concept: {reference}")
-    console.print(concept.source if source else Markdown(concept.body))
+    if source:
+        _raw_output(concept.source)
+    else:
+        console.print(Markdown(concept.body))
 
 
 @app.command()
@@ -412,13 +581,19 @@ def search(
     bundle: Annotated[list[str] | None, typer.Option("--bundle")] = None,
     collection: Annotated[str | None, typer.Option("--collection")] = None,
     limit: Annotated[int, typer.Option("--limit", min=1, max=1000)] = 20,
-    format: Annotated[str, typer.Option("--format")] = "text",
+    format: Annotated[TextJsonFormat, typer.Option("--format")] = TextJsonFormat.TEXT,
     semantic: Annotated[
         bool, typer.Option("--semantic", help="Use opt-in local hash embeddings.")
     ] = False,
 ) -> None:
+    """Search registered bundles, selected bundles, or one collection."""
     registry = _registry()
-    refs = registry.collection(collection) if collection else registry.list()
+    try:
+        refs = registry.collection(collection) if collection else registry.list()
+    except KeyError as exc:
+        raise typer.BadParameter(
+            f"unknown collection: {collection}", param_hint="--collection"
+        ) from exc
     if bundle:
         try:
             selected_refs = [resolve_bundle(value, registry) for value in bundle]
@@ -432,25 +607,34 @@ def search(
             refs = selected_refs
         refs = list({ref.id: ref for ref in refs}.values())
     refs = [ref for ref in refs if ref.available]
-    with SearchDatabase() as database:
-        for ref in refs:
-            database.index_bundle(ref, load_bundle(ref.path))
-        hits = (
-            semantic_search(database, query, bundle_ids=[ref.id for ref in refs], limit=limit)
-            if semantic
-            else database.search(query, bundle_ids=[ref.id for ref in refs], limit=limit)
-        )
-    if format == "json":
+    hits = []
+    if refs:
+        with SearchDatabase() as database:
+            for ref in refs:
+                database.index_bundle(ref, load_bundle(ref.path))
+            bundle_ids = [ref.id for ref in refs]
+            hits = (
+                semantic_search(database, query, bundle_ids=bundle_ids, limit=limit)
+                if semantic
+                else database.search(query, bundle_ids=bundle_ids, limit=limit)
+            )
+    if format == TextJsonFormat.JSON:
         _json({"schema_version": 1, "hits": [hit.to_dict() for hit in hits]})
         return
-    table = Table("Citation", "Type", "Description", "Match", expand=True)
-    for hit in hits:
-        table.add_row(hit.citation, hit.concept_type, hit.description, hit.snippet)
-    console.print(table)
+    if not hits:
+        console.print("No matches.")
+        return
+    for index, hit in enumerate(hits):
+        if index:
+            _raw_output("\n")
+        _raw_output(hit.citation, end="\n")
+        console.print(Padding(Text(f"{hit.concept_type or '?'} · {hit.description}"), (0, 0, 0, 2)))
+        console.print(Padding(_search_snippet(hit.snippet, query), (0, 0, 0, 2)))
 
 
 @searches_app.command("list")
 def searches_list() -> None:
+    """List reusable fleet searches."""
     registry = _registry()
     table = Table("Name", "Query", "Bundles", "Collection")
     for name, saved in sorted(registry.saved_searches.items()):
@@ -470,6 +654,7 @@ def searches_save(
     bundle: Annotated[list[str] | None, typer.Option("--bundle")] = None,
     collection: Annotated[str | None, typer.Option("--collection")] = None,
 ) -> None:
+    """Save a query and its optional bundle or collection scope."""
     try:
         _registry().save_search(name, query, bundles=bundle or [], collection=collection)
     except (KeyError, ValueError) as exc:
@@ -481,8 +666,9 @@ def searches_save(
 def searches_run(
     name: str,
     limit: Annotated[int, typer.Option("--limit", min=1, max=1000)] = 20,
-    format: Annotated[str, typer.Option("--format")] = "text",
+    format: Annotated[TextJsonFormat, typer.Option("--format")] = TextJsonFormat.TEXT,
 ) -> None:
+    """Run a saved search with its recorded scope."""
     saved = _registry().saved_searches.get(name)
     if not saved:
         raise typer.BadParameter(f"unknown saved search: {name}")
@@ -498,6 +684,7 @@ def searches_run(
 
 @searches_app.command("delete")
 def searches_delete(name: str) -> None:
+    """Delete a saved search."""
     try:
         _registry().delete_search(name)
     except KeyError as exc:
@@ -511,12 +698,12 @@ def status(
     diff: Annotated[
         bool, typer.Option("--diff", help="Include staged and unstaged diffs.")
     ] = False,
-    format: Annotated[str, typer.Option("--format")] = "text",
+    format: Annotated[TextJsonFormat, typer.Option("--format")] = TextJsonFormat.TEXT,
 ) -> None:
     """Show Git state scoped to an OKF bundle."""
     ref = _ref(bundle)
     data = {"schema_version": 1, **bundle_git_status(ref.path, include_diff=diff)}
-    if format == "json":
+    if format == TextJsonFormat.JSON:
         _json(data)
         return
     if not data["available"]:
@@ -530,23 +717,23 @@ def status(
     if diff:
         if data.get("staged_diff"):
             console.print("\n[bold]Staged[/]")
-            console.print(data["staged_diff"], markup=False)
+            _raw_output(data["staged_diff"])
         if data.get("diff"):
             console.print("\n[bold]Unstaged[/]")
-            console.print(data["diff"], markup=False)
+            _raw_output(data["diff"])
 
 
 @app.command()
 def compare(
     left: str,
     right: str,
-    format: Annotated[str, typer.Option("--format")] = "text",
+    format: Annotated[TextJsonFormat, typer.Option("--format")] = TextJsonFormat.TEXT,
 ) -> None:
     """Compare two OKF bundles and report concept drift."""
     left_ref = _ref(left)
     right_ref = _ref(right)
     result = compare_bundles(load_bundle(left_ref.path), load_bundle(right_ref.path))
-    if format == "json":
+    if format == TextJsonFormat.JSON:
         _json(result)
         return
     console.print(
@@ -583,7 +770,7 @@ def import_data(
     ref = _ref(bundle)
     try:
         changes = plan_import(source, ref.path, kind=kind, replace=replace)
-    except (KeyError, ValueError, FileExistsError) as exc:
+    except (KeyError, OSError, ValueError) as exc:
         available = ", ".join(sorted(BUILTIN_IMPORTERS))
         raise typer.BadParameter(f"{exc}; built-in importers: {available}") from exc
     if write:
@@ -593,13 +780,14 @@ def import_data(
         console.print(f"Imported {len(changes)} concept(s).")
         return
     for path, content in changes.items():
-        console.print(f"[bold]{path.relative_to(ref.path)}[/]\n{content}")
+        console.print(f"[bold]{path.relative_to(ref.path)}[/]")
+        _raw_output(content)
     console.print(f"Previewed {len(changes)} concept(s); add --write to apply.")
 
 
 def _validate_command(
     bundle: str,
-    format: str,
+    format: ValidationFormat,
     health: bool,
     stale_after: int,
     policy: Path | None = None,
@@ -613,14 +801,18 @@ def _validate_command(
         stale_after_days=stale_after if health else None,
     )
     if policy:
-        diagnostics.extend(policy_diagnostics(loaded, load_policy(policy)))
+        try:
+            policy_pack = load_policy(policy)
+        except (OSError, ValueError) as exc:
+            raise typer.BadParameter(str(exc), param_hint="--policy") from exc
+        diagnostics.extend(policy_diagnostics(loaded, policy_pack))
     if extensions:
         diagnostics.extend(extension_diagnostics(loaded))
-    if format == "json":
+    if format == ValidationFormat.JSON:
         _json(
             {"schema_version": 1, "diagnostics": [item.to_dict(ref.path) for item in diagnostics]}
         )
-    elif format == "sarif":
+    elif format == ValidationFormat.SARIF:
         _json(_sarif(diagnostics, ref.path))
     else:
         console.print(_diagnostic_table(diagnostics, ref.path))
@@ -635,7 +827,7 @@ def _validate_command(
 @app.command()
 def validate(
     bundle: str,
-    format: Annotated[str, typer.Option("--format")] = "text",
+    format: Annotated[ValidationFormat, typer.Option("--format")] = ValidationFormat.TEXT,
     policy: Annotated[Path | None, typer.Option("--policy")] = None,
     extensions: Annotated[bool, typer.Option("--extensions/--no-extensions")] = True,
 ) -> None:
@@ -647,7 +839,7 @@ def validate(
 def health(
     bundle: str,
     stale_after: Annotated[int, typer.Option("--stale-after", min=1)] = 180,
-    format: Annotated[str, typer.Option("--format")] = "text",
+    format: Annotated[ValidationFormat, typer.Option("--format")] = ValidationFormat.TEXT,
     policy: Annotated[Path | None, typer.Option("--policy")] = None,
 ) -> None:
     """Run validation plus staleness and graph-quality checks."""
@@ -661,6 +853,8 @@ def index(
     check: Annotated[bool, typer.Option("--check")] = False,
 ) -> None:
     """Preview, write, or check generated directory indexes."""
+    if write and check:
+        raise typer.BadParameter("--write and --check are mutually exclusive")
     ref = _ref(bundle)
     loaded = load_bundle(ref.path)
     changes = plan_indexes(loaded)
@@ -671,14 +865,18 @@ def index(
     else:
         for path, new in changes.items():
             old = path.read_text(encoding="utf-8") if path.exists() else ""
-            console.print(unified_diff(path, old, new, ref.path), markup=False, end="")
+            _raw_output(unified_diff(path, old, new, ref.path))
     console.print(f"{len(changes)} index file(s) {'written' if write else 'would change'}")
     if check and changes:
         raise typer.Exit(1)
 
 
 @app.command()
-def links(reference: str, direction: Annotated[str, typer.Option("--direction")] = "both") -> None:
+def links(
+    reference: str,
+    direction: Annotated[LinkDirection, typer.Option("--direction")] = LinkDirection.BOTH,
+) -> None:
+    """Show inbound, outbound, or bidirectional concept links."""
     if ":" not in reference:
         raise typer.BadParameter("reference must be BUNDLE:CONCEPT_ID")
     bundle_name, concept_id = reference.split(":", 1)
@@ -688,7 +886,7 @@ def links(reference: str, direction: Annotated[str, typer.Option("--direction")]
     if not concept:
         raise typer.BadParameter(f"unknown concept: {reference}")
     table = Table("Direction", "Concept", "Target", "Status", "Line")
-    if direction in {"both", "outbound"}:
+    if direction in {LinkDirection.BOTH, LinkDirection.OUTBOUND}:
         for item in concept.links:
             table.add_row(
                 "out",
@@ -697,7 +895,7 @@ def links(reference: str, direction: Annotated[str, typer.Option("--direction")]
                 "ok" if item.exists else "broken",
                 str(item.line),
             )
-    if direction in {"both", "inbound"}:
+    if direction in {LinkDirection.BOTH, LinkDirection.INBOUND}:
         for item in inbound_links(loaded).get(concept.concept_id, []):
             table.add_row("in", item.source_id, concept.concept_id, "ok", str(item.line))
     console.print(table)
@@ -707,17 +905,18 @@ def links(reference: str, direction: Annotated[str, typer.Option("--direction")]
 def graph(
     scope: str,
     depth: Annotated[int, typer.Option("--depth", min=0, max=10)] = 1,
-    format: Annotated[str, typer.Option("--format")] = "mermaid",
+    format: Annotated[GraphFormat, typer.Option("--format")] = GraphFormat.MERMAID,
 ) -> None:
+    """Render a bundle or concept-neighborhood graph."""
     bundle_name, _, concept_id = scope.partition(":")
     ref = _ref(bundle_name)
     data = graph_neighborhood(load_bundle(ref.path), concept_id or None, depth)
-    if format == "json":
+    if format == GraphFormat.JSON:
         _json(data)
-    elif format == "dot":
-        console.print(graph_dot(data), markup=False)
+    elif format == GraphFormat.DOT:
+        _raw_output(graph_dot(data), end="\n")
     else:
-        console.print(graph_mermaid(data), markup=False)
+        _raw_output(graph_mermaid(data), end="\n")
 
 
 @app.command("new")
@@ -730,6 +929,7 @@ def new_concept(
     template: Annotated[str | None, typer.Option("--template")] = None,
     write: Annotated[bool, typer.Option("--write")] = False,
 ) -> None:
+    """Preview or create a typed concept and refresh its indexes."""
     ref = _ref(bundle)
     extra: dict[str, Any] = {}
     body = "Describe this concept.\n"
@@ -769,7 +969,7 @@ def new_concept(
         console.print(f"created {path.relative_to(ref.path)}")
     else:
         console.print(f"Would create {path.relative_to(ref.path)}:\n")
-        console.print(text, markup=False)
+        _raw_output(text)
 
 
 @app.command()
@@ -779,6 +979,7 @@ def move(
     update_links: Annotated[bool, typer.Option("--update-links/--no-update-links")] = True,
     write: Annotated[bool, typer.Option("--write")] = False,
 ) -> None:
+    """Preview or move a concept, optionally repairing inbound links."""
     if ":" not in reference:
         raise typer.BadParameter("reference must be BUNDLE:CONCEPT_ID")
     bundle_name, old_id = reference.split(":", 1)
@@ -815,7 +1016,9 @@ async def _doctor() -> list[dict[str, Any]]:
 
 
 @app.command()
-def doctor(format: Annotated[str, typer.Option("--format")] = "text") -> None:
+def doctor(
+    format: Annotated[TextJsonFormat, typer.Option("--format")] = TextJsonFormat.TEXT,
+) -> None:
     """Check package, registry, cache, providers, auth, and bundled skills."""
     statuses = asyncio.run(_doctor())
     data = {
@@ -827,7 +1030,7 @@ def doctor(format: Annotated[str, typer.Option("--format")] = "text") -> None:
         "plugin_root": str(_plugin_root()) if _plugin_root() else None,
         "providers": statuses,
     }
-    if format == "json":
+    if format == TextJsonFormat.JSON:
         _json(data)
         return
     console.print(f"OKFleet {__version__} · Python {data['python']}")
@@ -853,7 +1056,7 @@ async def _run_chat(
     provider_name: str,
     question: str,
     scope: str,
-    mode: str,
+    mode: ChatMode,
     apply: bool,
 ) -> None:
     registry = _registry()
@@ -870,7 +1073,7 @@ async def _run_chat(
             session = await service.start_fleet(fleet_refs, Path(temp.name))
         else:
             ref = resolve_bundle(scope, registry)
-            if mode == "work":
+            if mode == ChatMode.WORK:
                 workspace = StagedWorkspace(ref.path)
                 session = await service.start_bundle(ref, work=True, cwd=workspace.root)
             else:
@@ -888,7 +1091,7 @@ async def _run_chat(
             changeset = workspace.changeset()
             console.print(f"\n[bold]Staged changes ({len(changeset.changes)} files)[/]")
             for change in changeset.changes:
-                console.print(change.diff, markup=False)
+                _raw_output(change.diff)
             if changeset.diagnostics:
                 console.print(_diagnostic_table(changeset.diagnostics, workspace.root))
             if apply:
@@ -907,13 +1110,19 @@ async def _run_chat(
 def chat(
     question: str,
     scope: Annotated[str, typer.Option("--scope", help="Bundle alias/path or 'fleet'.")] = "fleet",
-    provider: Annotated[str, typer.Option("--provider")] = "codex",
-    mode: Annotated[str, typer.Option("--mode", help="read or work")] = "read",
+    provider: Annotated[ProviderName, typer.Option("--provider")] = ProviderName.CODEX,
+    mode: Annotated[ChatMode, typer.Option("--mode")] = ChatMode.READ,
     apply: Annotated[
         bool, typer.Option("--apply", help="Apply a completed staged work turn.")
     ] = False,
 ) -> None:
     """Ask one provider-backed question in bundle, work, or fleet mode."""
+    if scope == "fleet" and mode == ChatMode.WORK:
+        raise typer.BadParameter("fleet scope is read-only", param_hint="--mode")
+    if apply and mode != ChatMode.WORK:
+        raise typer.BadParameter(
+            "--apply requires bundle work mode (--mode work)", param_hint="--apply"
+        )
     try:
         asyncio.run(_run_chat(provider, question, scope, mode, apply))
     except (ValueError, RuntimeError) as exc:
@@ -940,20 +1149,27 @@ def apply_changeset(
 
 @changesets_app.command("list")
 def changesets_list() -> None:
-    table = Table("ID", "Created", "Source", "Files", "Diagnostics")
-    for manifest in PendingChangeStore().list():
-        table.add_row(
-            str(manifest.get("id", "")),
-            str(manifest.get("created_at", "")),
-            str(manifest.get("source_root", "")),
-            str(len(manifest.get("files", []))),
-            str(len(manifest.get("diagnostics", []))),
+    """List persisted staged work sessions."""
+    manifests = PendingChangeStore().list()
+    if not manifests:
+        console.print("No staged changesets.")
+        return
+    for index, manifest in enumerate(manifests):
+        if index:
+            _raw_output("\n")
+        _raw_output(str(manifest.get("id", "")), end="\n")
+        console.print(
+            f"  Created: {manifest.get('created_at', '')}\n"
+            f"  Source: {manifest.get('source_root', '')}\n"
+            f"  Files: {len(manifest.get('files', []))} · "
+            f"Diagnostics: {len(manifest.get('diagnostics', []))}",
+            markup=False,
         )
-    console.print(table)
 
 
 @changesets_app.command("show")
 def changesets_show(changeset_id: str) -> None:
+    """Show diffs, conflicts, and diagnostics for one changeset."""
     store = PendingChangeStore()
     try:
         workspace = store.open(changeset_id)
@@ -962,7 +1178,7 @@ def changesets_show(changeset_id: str) -> None:
     try:
         changeset = workspace.changeset()
         for change in changeset.changes:
-            console.print(change.diff, markup=False)
+            _raw_output(change.diff)
         if changeset.conflicts:
             error_console.print("[red]Conflicts:[/] " + ", ".join(changeset.conflicts))
         if changeset.diagnostics:
@@ -973,6 +1189,7 @@ def changesets_show(changeset_id: str) -> None:
 
 @changesets_app.command("delete")
 def changesets_delete(changeset_id: str) -> None:
+    """Delete a staged changeset without touching its source bundle."""
     try:
         PendingChangeStore().delete(changeset_id)
     except KeyError as exc:
@@ -982,19 +1199,23 @@ def changesets_delete(changeset_id: str) -> None:
 
 @sessions_app.command("list")
 def sessions_list() -> None:
+    """List saved provider-native session mappings."""
     with SearchDatabase() as database:
         sessions = database.list_sessions()
-    table = Table("ID", "Provider", "Mode", "Scope", "Created", "Native ID")
-    for session in sessions:
-        table.add_row(
-            session.id,
-            session.provider,
-            session.mode.value,
-            ", ".join(session.scope),
-            session.created_at,
-            session.native_id or "—",
+    if not sessions:
+        console.print("No saved sessions.")
+        return
+    for index, session in enumerate(sessions):
+        if index:
+            _raw_output("\n")
+        _raw_output(session.id, end="\n")
+        console.print(
+            f"  Provider: {session.provider} · Mode: {session.mode.value}\n"
+            f"  Scope: {', '.join(session.scope) or '—'}\n"
+            f"  Created: {session.created_at}\n"
+            f"  Native ID: {session.native_id or '—'}",
+            markup=False,
         )
-    console.print(table)
 
 
 async def _resume_session(session_id: str, question: str) -> None:
@@ -1029,6 +1250,7 @@ def sessions_resume(session_id: str, question: str) -> None:
 
 @sessions_app.command("delete")
 def sessions_delete(session_id: str) -> None:
+    """Delete an OKFleet session mapping, leaving provider history intact."""
     with SearchDatabase() as database:
         removed = database.delete_session(session_id)
     if not removed:
@@ -1040,12 +1262,14 @@ def sessions_delete(session_id: str) -> None:
 
 @cache_app.command("status")
 def cache_status() -> None:
+    """Print machine-readable statistics for the derived search cache."""
     with SearchDatabase() as database:
         _json({"schema_version": 1, "path": str(database.path), **database.stats()})
 
 
 @cache_app.command("rebuild")
 def cache_rebuild() -> None:
+    """Clear and rebuild derived search data from available bundles."""
     registry = _registry()
     with SearchDatabase() as database:
         database.clear_derived()
@@ -1059,6 +1283,7 @@ def cache_rebuild() -> None:
 
 @cache_app.command("clear")
 def cache_clear() -> None:
+    """Delete derived search data without touching registry or bundles."""
     path = default_database_path()
     for candidate in [path, path.with_name(path.name + "-wal"), path.with_name(path.name + "-shm")]:
         candidate.unlink(missing_ok=True)
@@ -1080,9 +1305,13 @@ def mcp_serve(
 
 
 @mcp_app.command("config")
-def print_mcp_config(command: str = "okfleet") -> None:
+def print_mcp_config(
+    command: Annotated[
+        str, typer.Option("--command", help="Executable used to launch OKFleet.")
+    ] = "okfleet",
+) -> None:
     """Print a provider-compatible MCP configuration snippet."""
-    console.print(mcp_config(command), markup=False)
+    _raw_output(mcp_config(command), end="\n")
 
 
 def main() -> None:

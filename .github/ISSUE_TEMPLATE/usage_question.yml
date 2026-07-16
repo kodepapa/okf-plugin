@@ -1,0 +1,43 @@
+name: Usage question
+description: Ask for help using OKFleet with a sanitized example
+title: "question: "
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read [SUPPORT.md](https://github.com/kodepapa/okfleet/blob/main/SUPPORT.md) and search existing issues first. Never include credentials, private bundle content, or authenticated provider transcripts.
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to accomplish?
+    validations:
+      required: true
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What have you tried?
+      description: Include exact commands and sanitized output where useful.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: OKFleet version
+      placeholder: Output of `okfleet --version`
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Installation method, operating system, Python version, and provider CLI if relevant
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed credentials, private bundle content, sensitive paths, and authenticated provider transcripts.
+          required: true

@@ -91,7 +91,8 @@ class SpotlightSearch(ModalScreen[SearchSelection | None]):
         row = Text()
         row.append("▣  ", style="bold #3b82f6")
         row.append(ref.alias, style="bold")
-        row.append(f"   BUNDLE · {ref.source.upper()}", style="#64748b")
+        row.append("  ·  ", style="dim")
+        row.append(f"{ref.source.upper()} BUNDLE", style="dim")
         return row
 
     @staticmethod
@@ -99,8 +100,10 @@ class SpotlightSearch(ModalScreen[SearchSelection | None]):
         row = Text()
         row.append("◆  ", style="bold #60a5fa")
         row.append(hit.title, style="bold")
-        row.append(f"   {hit.citation}", style="#60a5fa")
-        row.append(f" · {hit.concept_type or 'Concept'}", style="#64748b")
+        row.append("  ·  ", style="dim")
+        row.append(hit.concept_type or "Concept", style="dim")
+        row.append("\n   ")
+        row.append(hit.citation, style="dim")
         return row
 
     def _matching_bundles(self, refs: list[BundleRef], query: str) -> list[BundleRef]:
@@ -227,22 +230,19 @@ class KeyboardHelp(ModalScreen[None]):
 
     def compose(self) -> ComposeResult:
         yield VimMarkdown(
-            """# Keyboard map
+            """# Keys
 
 | Key | Action | Key | Action |
 |---|---|---|---|
-| `j` / `k` | Move or scroll | `h` / `l` | Collapse/expand or scroll |
-| `g` / `G` | First/top or last/bottom | `Ctrl-U/D` | Page up/down |
-| `H` / `L` | Previous/next pane | `Tab` | Next control |
-| `Enter` | Open selected item | `Esc` | Return to browse mode |
-| `/` | Spotlight search | `b` / `c` | Browse tree / chat input |
-| `1` / `2` / `3` | Concept / Health / Graph | `v` | Validate bundle |
-| `r` / `d` | Refresh / staged diff | `Ctrl-P` | Command palette |
-| `Ctrl-G` | Cancel provider turn | `Ctrl-X` | Discard staged work |
+| `j/k` | Move / scroll | `h/l` | Collapse / expand |
+| `g/G` | First / last | `Ctrl-U/D` | Page up / down |
+| `H/L` | Switch pane | `1/2/3` | Concept / Health / Graph |
+| `Enter` | Open | `/` | Spotlight search |
+| `b/c` | Library / chat | `Esc` | Normal mode |
+| `v/r/d` | Validate / refresh / diff | `Ctrl-P` | Commands |
+| `Ctrl-G/X` | Cancel / discard | `q` | Quit |
 
-Vim keys are active only in navigation widgets. Inputs remain in insert mode, so letters such as `j`, `k`, `q`, and `/` type normally. Press `Esc` to leave an input and return to the bundle tree.
-
-In Spotlight, use arrows or `Ctrl-J/K` without leaving the input, or press `Tab` and use `j/k` in the results. `F2` toggles all-bundle and current-bundle scope.
+Vim keys stay local to navigation widgets. Inputs remain in insert mode; press `Esc` to return.
 """,
             id="keyboard-help",
         )

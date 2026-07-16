@@ -14,10 +14,32 @@ WHEEL_MEMBERS = {
     "okfleet/py.typed",
     "okfleet/provider_plugin/.claude-plugin/plugin.json",
     "okfleet/provider_plugin/skills/okf-author/SKILL.md",
+    "okfleet/provider_plugin/skills/okf-author/references/spec.md",
+    "okfleet/provider_plugin/skills/okf-author/scripts/okf.py",
     "okfleet/provider_plugin/skills/okf-read/SKILL.md",
+    "okfleet/provider_plugin/skills/okf-read/scripts/okf.py",
+    "okfleet/schemas/agent-event-v1.schema.json",
+    "okfleet/schemas/diagnostics-v1.schema.json",
+    "okfleet/schemas/search-v1.schema.json",
+    "okfleet/tui/okfleet.tcss",
 }
 
-SDIST_MEMBERS = {"AGENTS.md", "CHANGELOG.md", "LICENSE", "NOTICE", "README.md", "pyproject.toml"}
+SDIST_MEMBERS = {
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE",
+    "README.md",
+    "pyproject.toml",
+    "skills/okf-author/SKILL.md",
+    "skills/okf-author/references/spec.md",
+    "skills/okf-author/scripts/okf.py",
+    "skills/okf-read/SKILL.md",
+    "skills/okf-read/scripts/okf.py",
+    "uv.lock",
+}
 
 
 def _wheel(path: Path, *, include_typed_marker: bool = True) -> None:
@@ -37,9 +59,9 @@ def _wheel(path: Path, *, include_typed_marker: bool = True) -> None:
         )
 
 
-def _sdist(path: Path) -> None:
+def _sdist(path: Path, *, exclude: str | None = None) -> None:
     with tarfile.open(path, "w:gz") as archive:
-        for member in SDIST_MEMBERS:
+        for member in SDIST_MEMBERS - ({exclude} if exclude else set()):
             payload = b"test\n"
             info = tarfile.TarInfo(f"okfleet-0.5.0/{member}")
             info.size = len(payload)
@@ -77,3 +99,20 @@ def test_distribution_verifier_rejects_missing_typed_marker(tmp_path: Path) -> N
 
     assert result.returncode != 0
     assert "okfleet/py.typed" in result.stderr
+
+
+def test_distribution_verifier_rejects_sdist_without_canonical_skills(tmp_path: Path) -> None:
+    wheel = tmp_path / "okfleet-0.5.0-py3-none-any.whl"
+    sdist = tmp_path / "okfleet-0.5.0.tar.gz"
+    _wheel(wheel)
+    _sdist(sdist, exclude="skills/okf-author/SKILL.md")
+
+    result = subprocess.run(
+        [sys.executable, str(VERIFIER), str(tmp_path)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "skills/okf-author/SKILL.md" in result.stderr

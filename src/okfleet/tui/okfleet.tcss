@@ -5,7 +5,7 @@ Screen {
 }
 
 #topbar {
-    height: 3;
+    height: 2;
     padding: 0 1;
     background: #0b172a;
     border-bottom: solid #1e3a5f;
@@ -13,20 +13,20 @@ Screen {
 
 #brand {
     width: 20;
-    height: 3;
+    height: 2;
     content-align: left middle;
 }
 
 #product-label {
     width: 1fr;
-    height: 3;
+    height: 2;
     color: #64748b;
     content-align: left middle;
 }
 
 #mode-indicator {
     width: auto;
-    height: 3;
+    height: 2;
     padding: 0 1;
     color: #93c5fd;
     content-align: right middle;
@@ -39,20 +39,20 @@ Screen {
 
 #sidebar {
     width: 30;
-    min-width: 24;
+    min-width: 22;
     background: #091525;
     border-right: solid #1e3a5f;
 }
 
 #library-header {
-    height: 3;
+    height: 2;
     padding: 0 1;
     border-bottom: solid #132946;
 }
 
 #library-title {
     width: 1fr;
-    height: 3;
+    height: 2;
     content-align: left middle;
     color: #bfdbfe;
     text-style: bold;
@@ -60,13 +60,13 @@ Screen {
 
 #library-count {
     width: auto;
-    height: 3;
+    height: 2;
     content-align: right middle;
     color: #64748b;
 }
 
 #scope-label {
-    height: 2;
+    height: 1;
     padding: 0 1;
     color: #64748b;
     content-align: left middle;
@@ -74,7 +74,7 @@ Screen {
 
 #bundle-tree {
     height: 1fr;
-    padding: 0 1 1 0;
+    padding: 0 1 0 0;
     background: #091525;
     scrollbar-color: #1e3a5f;
     scrollbar-color-hover: #2563eb;
@@ -82,7 +82,7 @@ Screen {
 }
 
 #bundle-tree:focus {
-    border-right: heavy #3b82f6;
+    border-left: none;
 }
 
 #main {
@@ -100,14 +100,14 @@ TabbedContent ContentSwitcher {
 }
 
 Tabs {
-    height: 3;
+    height: 2;
     background: #091525;
-    border-bottom: solid #132946;
+    border-bottom: none;
 }
 
 Tab {
     color: #64748b;
-    padding: 0 2;
+    padding: 0 1;
 }
 
 Tab.-active {
@@ -133,37 +133,37 @@ VimMarkdown:focus {
 }
 
 #chat-drawer {
-    layer: overlay;
-    dock: right;
-    width: 52;
-    min-width: 36;
+    width: 54;
+    min-width: 40;
     height: 1fr;
     background: #0b172a;
     border-left: heavy #2563eb;
 }
 
 #chat-drawer.full-screen {
+    layer: overlay;
+    dock: right;
     width: 1fr;
     min-width: 1;
     border-left: none;
 }
 
 #chat-header {
-    height: 3;
+    height: 2;
     padding: 0 1;
     border-bottom: solid #1e3a5f;
 }
 
 #chat-title {
     width: 1fr;
-    height: 3;
+    height: 2;
     content-align: left middle;
     text-style: bold;
 }
 
 #chat-close-hint {
     width: auto;
-    height: 3;
+    height: 2;
     content-align: right middle;
     color: #64748b;
 }
@@ -174,11 +174,12 @@ VimMarkdown:focus {
 }
 
 #provider-select {
-    width: 18;
+    width: 1fr;
+    margin-right: 1;
 }
 
 #mode-select {
-    width: 20;
+    width: 1fr;
 }
 
 #chat-transcript {
@@ -195,7 +196,7 @@ VimMarkdown:focus {
 }
 
 #chat-input {
-    margin: 1 1 0 1;
+    margin: 0 1;
     border: tall #1e3a5f;
 }
 
@@ -204,7 +205,7 @@ VimMarkdown:focus {
 }
 
 #chat-hints {
-    height: 2;
+    height: 1;
     padding: 0 2;
     color: #64748b;
 }
@@ -228,21 +229,56 @@ VimMarkdown:focus {
     color: #64748b;
 }
 
+#status-bar.chat-mode {
+    display: none;
+}
+
+/* Narrow terminals use one purposeful pane at a time. */
+#body.narrow.library-pane #sidebar {
+    display: block;
+    width: 1fr;
+    min-width: 1;
+    border-right: none;
+}
+
+#body.narrow.library-pane #main {
+    display: none;
+}
+
+#body.narrow.content-pane #sidebar {
+    display: none;
+}
+
+#body.narrow.content-pane #main {
+    display: block;
+    width: 1fr;
+}
+
+/* Chat and the document become a deliberate two-pane workspace on wide screens. */
+#body.chat-open #sidebar {
+    display: none;
+}
+
+#body.chat-open #main {
+    display: block;
+    width: 1fr;
+}
+
 .hidden {
     display: none;
 }
 
 SpotlightSearch {
     align: center top;
-    padding: 3 2 1 2;
-    background: rgba(2, 8, 23, 0.82);
+    padding: 2 2 1 2;
+    background: rgba(2, 8, 23, 0.76);
 }
 
 #spotlight {
-    width: 86;
+    width: 76;
     max-width: 96%;
-    height: 24;
-    max-height: 92%;
+    height: auto;
+    max-height: 20;
     border: round #3b82f6;
     background: #0b172a;
 }
@@ -278,20 +314,22 @@ SpotlightSearch {
 }
 
 #spotlight-meta {
-    height: 2;
+    height: 1;
     padding: 0 2;
     color: #64748b;
     content-align: left middle;
 }
 
 #spotlight-results {
-    height: 1fr;
+    height: auto;
+    min-height: 3;
+    max-height: 10;
     margin: 0 1;
     background: #0b172a;
 }
 
 #spotlight-results > .option-list--option {
-    height: 1;
+    height: 2;
     padding: 0 1;
 }
 
@@ -301,8 +339,8 @@ SpotlightSearch {
 }
 
 #spotlight-empty {
-    height: 1fr;
-    padding: 2;
+    height: 4;
+    padding: 1 2;
     color: #64748b;
     content-align: center middle;
 }
@@ -322,7 +360,7 @@ KeyboardHelp {
 #keyboard-help {
     width: 72;
     max-width: 94%;
-    height: 27;
+    height: 32;
     max-height: 92%;
     padding: 1 2;
     border: round #3b82f6;

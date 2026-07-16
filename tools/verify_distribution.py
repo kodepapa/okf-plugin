@@ -9,7 +9,14 @@ WHEEL_MEMBERS = {
     "okfleet/py.typed",
     "okfleet/provider_plugin/.claude-plugin/plugin.json",
     "okfleet/provider_plugin/skills/okf-author/SKILL.md",
+    "okfleet/provider_plugin/skills/okf-author/references/spec.md",
+    "okfleet/provider_plugin/skills/okf-author/scripts/okf.py",
     "okfleet/provider_plugin/skills/okf-read/SKILL.md",
+    "okfleet/provider_plugin/skills/okf-read/scripts/okf.py",
+    "okfleet/schemas/agent-event-v1.schema.json",
+    "okfleet/schemas/diagnostics-v1.schema.json",
+    "okfleet/schemas/search-v1.schema.json",
+    "okfleet/tui/okfleet.tcss",
 }
 
 SDIST_MEMBERS = {
@@ -18,7 +25,15 @@ SDIST_MEMBERS = {
     "LICENSE",
     "NOTICE",
     "README.md",
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
     "pyproject.toml",
+    "skills/okf-author/SKILL.md",
+    "skills/okf-author/references/spec.md",
+    "skills/okf-author/scripts/okf.py",
+    "skills/okf-read/SKILL.md",
+    "skills/okf-read/scripts/okf.py",
+    "uv.lock",
 }
 
 

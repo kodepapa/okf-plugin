@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/okfleet-logo.svg" alt="OKFleet — Open Knowledge Format toolkit" width="560">
+  <img src="https://raw.githubusercontent.com/kodepapa/okfleet/main/assets/okfleet-logo.svg" alt="OKFleet — Open Knowledge Format toolkit" width="560">
 </p>
 
 <p align="center">
@@ -8,10 +8,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kodepapa/okf-plugin/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/kodepapa/okf-plugin/ci.yml?branch=main&amp;style=flat-square&amp;logo=github&amp;label=CI&amp;color=2563EB"></a>
-  <a href="https://github.com/kodepapa/okf-plugin/actions/workflows/release-please.yml"><img alt="Release Please" src="https://img.shields.io/github/actions/workflow/status/kodepapa/okf-plugin/release-please.yml?branch=main&amp;style=flat-square&amp;logo=google&amp;label=release&amp;color=0EA5E9"></a>
+  <a href="https://github.com/kodepapa/okfleet/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/kodepapa/okfleet/ci.yml?branch=main&amp;style=flat-square&amp;logo=github&amp;label=CI&amp;color=2563EB"></a>
+  <a href="https://github.com/kodepapa/okfleet/actions/workflows/release-please.yml"><img alt="Release Please" src="https://img.shields.io/github/actions/workflow/status/kodepapa/okfleet/release-please.yml?branch=main&amp;style=flat-square&amp;logo=google&amp;label=release&amp;color=0EA5E9"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-2563EB?style=flat-square&amp;logo=python&amp;logoColor=white">
-  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache--2.0-2563EB?style=flat-square"></a>
+  <a href="https://github.com/kodepapa/okfleet/blob/main/LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache--2.0-2563EB?style=flat-square"></a>
   <img alt="Project status: beta" src="https://img.shields.io/badge/status-beta-0EA5E9?style=flat-square">
   <img alt="Local first" src="https://img.shields.io/badge/local--first-yes-0284C7?style=flat-square&amp;logo=sqlite&amp;logoColor=white">
   <img alt="MCP compatible" src="https://img.shields.io/badge/MCP-compatible-0369A1?style=flat-square">
@@ -23,7 +23,8 @@
   <a href="#agent-workflows">Agent workflows</a> ·
   <a href="#architecture">Architecture</a> ·
   <a href="#documentation">Documentation</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="https://github.com/kodepapa/okfleet/blob/main/CONTRIBUTING.md">Contributing</a> ·
+  <a href="https://github.com/kodepapa/okfleet/blob/main/SUPPORT.md">Support</a>
 </p>
 
 ---
@@ -74,8 +75,8 @@ OKFleet provides that missing workbench. The deterministic core works without an
 OKFleet currently targets Python 3.11+ and is installed from source while the package is in beta.
 
 ```bash
-git clone https://github.com/kodepapa/okf-plugin.git
-cd okf-plugin
+git clone https://github.com/kodepapa/okfleet.git
+cd okfleet
 uv sync --locked --extra dev
 uv run okfleet doctor
 uv run okfleet
@@ -84,9 +85,11 @@ uv run okfleet
 Running `okfleet` without a subcommand opens the TUI in the current directory.
 
 ```bash
-# Find and register knowledge
+# Preview discovered knowledge without changing the global registry
 okfleet discover ~/work
-okfleet bundles add ~/work/knowledge/warehouse --alias warehouse
+
+# Explicitly register every discovered bundle
+okfleet discover ~/work --autoregister
 okfleet bundles refresh
 
 # Search and inspect
@@ -99,6 +102,10 @@ okfleet validate warehouse
 okfleet health warehouse --stale-after 180
 okfleet index warehouse --write
 ```
+
+`discover` is read-only by default. Pass `--autoregister` (or `-a`) when you want
+the discovered paths added to the global registry; repeated runs keep existing
+registrations and aliases intact.
 
 Once published, the intended zero-install entry point is `uvx okfleet`.
 
@@ -206,17 +213,17 @@ The registry and derived SQLite database live in platform-appropriate user direc
 
 | Skill | Purpose |
 |---|---|
-| [`okf-author`](skills/okf-author/SKILL.md) | Create, edit, enrich, cross-link, index, log, and validate bundles. |
-| [`okf-read`](skills/okf-read/SKILL.md) | Navigate bundles progressively and answer source-grounded questions. |
+| [`okf-author`](https://github.com/kodepapa/okfleet/blob/main/skills/okf-author/SKILL.md) | Create, edit, enrich, cross-link, index, log, and validate bundles. |
+| [`okf-read`](https://github.com/kodepapa/okfleet/blob/main/skills/okf-read/SKILL.md) | Navigate bundles progressively and answer source-grounded questions. |
 
 Install the Claude Code plugin:
 
 ```text
-/plugin marketplace add kodepapa/okf-plugin
-/plugin install okf@okf-plugin
+/plugin marketplace add kodepapa/okfleet
+/plugin install okf@okfleet
 ```
 
-The repository also includes a Codex manifest at [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json) and read-only MCP wiring in [`.mcp.json`](.mcp.json). Contributor instructions are canonical in [`AGENTS.md`](AGENTS.md); [`CLAUDE.md`](CLAUDE.md) and the project-level Claude skill entries are symlinks to the same sources so the two agent environments cannot drift. The standalone helpers inside both skills remain self-contained and compatible with older Python installations.
+The repository also includes a Codex manifest at [`.codex-plugin/plugin.json`](https://github.com/kodepapa/okfleet/blob/main/.codex-plugin/plugin.json) and read-only MCP wiring in [`.mcp.json`](https://github.com/kodepapa/okfleet/blob/main/.mcp.json). Contributor instructions are canonical in [`AGENTS.md`](https://github.com/kodepapa/okfleet/blob/main/AGENTS.md); [`CLAUDE.md`](https://github.com/kodepapa/okfleet/blob/main/CLAUDE.md) and the project-level Claude skill entries are symlinks to the same sources so the two agent environments cannot drift. The standalone helpers inside both skills remain self-contained and compatible with older Python installations.
 
 The skills work when the plugin is installed on its own. The MCP entry invokes the `okfleet` executable, so install the Python toolkit on `PATH` as well before enabling that server; a source checkout can use `uv tool install .`. Run `okfleet doctor` to verify the local contract.
 
@@ -229,19 +236,21 @@ The skills work when the plugin is installed on its own. The MCP entry invokes t
 - Work sessions edit a snapshot; apply uses complete-tree hashes to block stale overwrites.
 - No command automatically commits, pushes, opens a pull request, or grants unrestricted shell access.
 
-Read the full [security and privacy model](docs/SECURITY.md).
+Read the full [security and privacy model](https://github.com/kodepapa/okfleet/blob/main/docs/SECURITY.md).
 ## Documentation
 
 | Document | What it covers |
 |---|---|
-| [Development plan](docs/OKFLEET_DEVELOPMENT_PLAN.md) | Product scope, architecture, milestones, acceptance criteria, and agent-ready work breakdown. |
-| [Advanced workflows](docs/EXTENDING_OKFLEET.md) | Importers, policies, remote caches, web, LSP, and Python extension contracts. |
-| [Provider protocols](docs/PROVIDER_PROTOCOLS.md) | Codex app-server/exec and Claude Code stream-JSON behavior. |
-| [OKF compatibility](docs/OKF_COMPATIBILITY.md) | Specification support and standalone-helper parity. |
-| [Security](docs/SECURITY.md) | Trust boundaries, privacy, staging, and remote-access guidance. |
-| [Contributing](CONTRIBUTING.md) | Local setup, tests, and contribution workflow. |
-| [Releasing](docs/RELEASING.md) | Conventional commits, Release Please, tags, and GitHub releases. |
-| [Changelog](CHANGELOG.md) | User-visible changes by release. |
+| [Development plan](https://github.com/kodepapa/okfleet/blob/main/docs/OKFLEET_DEVELOPMENT_PLAN.md) | Product scope, architecture, milestones, acceptance criteria, and agent-ready work breakdown. |
+| [Advanced workflows](https://github.com/kodepapa/okfleet/blob/main/docs/EXTENDING_OKFLEET.md) | Importers, policies, remote caches, web, LSP, and Python extension contracts. |
+| [Provider protocols](https://github.com/kodepapa/okfleet/blob/main/docs/PROVIDER_PROTOCOLS.md) | Codex app-server/exec and Claude Code stream-JSON behavior. |
+| [OKF compatibility](https://github.com/kodepapa/okfleet/blob/main/docs/OKF_COMPATIBILITY.md) | Specification support and standalone-helper parity. |
+| [Security](https://github.com/kodepapa/okfleet/blob/main/docs/SECURITY.md) | Trust boundaries, privacy, staging, and remote-access guidance. |
+| [Support](https://github.com/kodepapa/okfleet/blob/main/SUPPORT.md) | Usage help, diagnostics, and the right place to report a problem. |
+| [Contributing](https://github.com/kodepapa/okfleet/blob/main/CONTRIBUTING.md) | Local setup, tests, and contribution workflow. |
+| [Code of Conduct](https://github.com/kodepapa/okfleet/blob/main/CODE_OF_CONDUCT.md) | Community standards and private enforcement reporting. |
+| [Releasing](https://github.com/kodepapa/okfleet/blob/main/docs/RELEASING.md) | Conventional commits, Release Please, tags, and GitHub releases. |
+| [Changelog](https://github.com/kodepapa/okfleet/blob/main/CHANGELOG.md) | User-visible changes by release. |
 
 ## Configuration
 
@@ -256,22 +265,21 @@ Read the full [security and privacy model](docs/SECURITY.md).
 ## Development
 
 ```bash
-uv sync --locked --extra dev
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy src
-uv run pytest --cov=okfleet
-uv run python tools/verify_generated.py
-uv build
-uv run python tools/verify_distribution.py dist
+make sync
+make package
 ```
 
-The test suite covers the core, CLI, provider protocols, staged writes, TUI, web service, LSP, importers, policies, and compatibility helpers. CI runs on macOS and Linux across Python 3.11–3.13.
+The test suite covers the core, CLI, provider protocols, staged writes, TUI, web service, LSP,
+importers, policies, and compatibility helpers. CI covers Python 3.11–3.13 on Linux and includes
+a macOS compatibility run on Python 3.13.
 
 ## Contributing
 
-Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), keep provider-independent behavior in the core, and include tests for user-visible changes. For security concerns, follow the private-reporting guidance in [docs/SECURITY.md](docs/SECURITY.md).
+Issues and pull requests are welcome. Start with [CONTRIBUTING.md](https://github.com/kodepapa/okfleet/blob/main/CONTRIBUTING.md), use
+[SUPPORT.md](https://github.com/kodepapa/okfleet/blob/main/SUPPORT.md) to choose the right issue type, and follow the
+[Code of Conduct](https://github.com/kodepapa/okfleet/blob/main/CODE_OF_CONDUCT.md). For security concerns, use the private-reporting
+guidance in [docs/SECURITY.md](https://github.com/kodepapa/okfleet/blob/main/docs/SECURITY.md).
 
 ## License
 
-OKFleet is licensed under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for attribution information.
+OKFleet is licensed under the [Apache License 2.0](https://github.com/kodepapa/okfleet/blob/main/LICENSE). See [NOTICE](https://github.com/kodepapa/okfleet/blob/main/NOTICE) for attribution information.

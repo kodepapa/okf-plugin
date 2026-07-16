@@ -16,11 +16,40 @@ permissions:
 
 jobs:
   release-please:
+    name: Release Please
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Create or update release pull request
+        id: release
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+      - name: Check out the release tag
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ steps.release.outputs.tag_name }}
+          persist-credentials: false
+      - name: Install uv and Python
+        if: ${{ steps.release.outputs.release_created }}
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - name: Sync locked dependencies
+        if: ${{ steps.release.outputs.release_created }}
+        run: uv sync --locked --extra dev
+      - name: Build and verify distributions
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          uv build --clear
+          uv run python tools/verify_distribution.py dist
+          uvx --from twine==6.2.0 twine check dist/*
+      - name: Attach distributions to the GitHub release
+        if: ${{ steps.release.outputs.release_created }}
+        run: gh release upload "${{ steps.release.outputs.tag_name }}" dist/*
+        env:
+          GH_TOKEN: ${{ github.token }}

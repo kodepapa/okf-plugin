@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Support and usage guidance
+    url: https://github.com/kodepapa/okfleet/blob/main/SUPPORT.md
+    about: Check diagnostics and choose the right issue type.
   - name: Private security report
-    url: https://github.com/kodepapa/okf-plugin/security/advisories/new
+    url: https://github.com/kodepapa/okfleet/security/advisories/new
     about: Report vulnerabilities without exposing private details.

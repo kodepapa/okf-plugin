@@ -37,6 +37,85 @@ def test_list_and_graph(bundle_path: Path) -> None:
     assert "flowchart LR" in graph.stdout
 
 
+def test_structured_and_source_output_is_never_rich_wrapped_or_interpreted(
+    bundle_path: Path,
+) -> None:
+    concept = bundle_path / "metrics/revenue.md"
+    source = concept.read_text(encoding="utf-8").replace(
+        "description: Recognized revenue.",
+        "description: " + "recognized revenue and customer adjustments " * 8,
+    )
+    concept.write_text(source, encoding="utf-8")
+
+    jsonl = runner.invoke(
+        app,
+        ["list", str(bundle_path), "--type", "Metric", "--format", "jsonl"],
+        terminal_width=50,
+    )
+    shown = runner.invoke(
+        app, ["show", f"{bundle_path}:metrics/revenue", "--source"], terminal_width=50
+    )
+
+    assert jsonl.exit_code == 0, jsonl.output
+    records = [json.loads(line) for line in jsonl.stdout.splitlines()]
+    assert len(records) == 1
+    assert records[0]["id"] == "metrics/revenue"
+    assert shown.exit_code == 0, shown.output
+    assert shown.stdout == source
+
+
+def test_text_search_preserves_matches_without_leaking_fts_or_markdown_markers(
+    bundle_path: Path,
+) -> None:
+    alias = "a-long-but-valid-analytics-bundle-alias"
+    BundleRegistry().add(bundle_path, alias)
+    result = runner.invoke(app, ["search", "Calculated", "--bundle", alias])
+    nested = runner.invoke(app, ["search", "Revenue", "--bundle", alias])
+
+    assert result.exit_code == 0, result.output
+    assert "Calculated" in result.stdout
+    assert "[Calculated]" not in result.stdout
+    assert nested.exit_code == 0, nested.output
+    assert f"{alias}:metrics/revenue" in nested.stdout
+    assert "[Revenue]]" not in nested.stdout
+    assert "](../" not in nested.stdout
+
+
+def test_index_preview_emits_an_unwrapped_unified_diff(bundle_path: Path) -> None:
+    long_description = ("A deliberately long description " * 8).strip()
+    concept = bundle_path / "metrics/revenue.md"
+    concept.write_text(
+        concept.read_text(encoding="utf-8").replace(
+            "description: Recognized revenue.", f"description: {long_description}"
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["index", str(bundle_path)], terminal_width=50)
+
+    assert result.exit_code == 0, result.output
+    assert long_description in result.stdout
+
+
+def test_mcp_config_remains_valid_json_with_a_long_command() -> None:
+    command = "/a/" + "very-long-directory/" * 8 + "okfleet"
+
+    result = runner.invoke(
+        app, ["mcp", "config", "--command", command], terminal_width=40
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.stdout)["mcpServers"]["okfleet"]["command"] == command
+
+
+def test_web_rejects_out_of_range_ports_without_a_traceback() -> None:
+    result = runner.invoke(app, ["web", "--port", "70000"])
+
+    assert result.exit_code == 2, result.output
+    assert "65535" in result.output
+    assert "Traceback" not in result.output
+
+
 def test_import_preview_then_write(bundle_path: Path, tmp_path: Path) -> None:
     source = tmp_path / "schema.sql"
     source.write_text(

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import sys
 import tempfile
 from collections import Counter
@@ -13,7 +14,9 @@ from typing import Annotated, Any
 import typer
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.padding import Padding
 from rich.table import Table
+from rich.text import Text
 from watchfiles import watch
 
 from . import __version__
@@ -132,7 +135,14 @@ def _plugin_root() -> Path | None:
 
 
 def _json(data: Any) -> None:
-    console.print_json(json.dumps(data, default=str))
+    _raw_output(json.dumps(data, default=str, indent=2), end="\n")
+
+
+def _raw_output(text: str, *, end: str = "") -> None:
+    """Write structured or source output without Rich interpreting or wrapping it."""
+    sys.stdout.write(text)
+    sys.stdout.write(end)
+    sys.stdout.flush()
 
 
 def _ref(value: str, registry_path: Path | None = None) -> BundleRef:
@@ -141,6 +151,31 @@ def _ref(value: str, registry_path: Path | None = None) -> BundleRef:
     except ValueError as exc:
         error_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(2) from exc
+
+
+def _search_snippet(snippet: str, query: str) -> Text:
+    """Turn FTS match markers and Markdown links into a compact readable excerpt."""
+    terms = {
+        token.casefold().rstrip("*")
+        for token in re.findall(r"[\w-]+\*?", query)
+        if token.rstrip("*")
+    }
+
+    def unmark(match: re.Match[str]) -> str:
+        value = match.group(1)
+        folded = value.casefold()
+        if any(folded == term or folded.startswith(term) for term in terms):
+            return value
+        return match.group(0)
+
+    clean = re.sub(r"\[([^\[\]\n]+)\]", unmark, snippet)
+    clean = re.sub(r"\[([^\]\n]+)\]\([^\n)]+\)", r"\1", clean)
+    clean = " ".join(clean.split())
+    rendered = Text(clean)
+    if terms:
+        pattern = "|".join(re.escape(term) + r"\w*" for term in sorted(terms, key=len, reverse=True))
+        rendered.highlight_regex(rf"(?i)\b(?:{pattern})\b", style="bold cyan")
+    return rendered
 
 
 def _diagnostic_table(diagnostics: list[Diagnostic], root: Path) -> Table:
@@ -234,7 +269,7 @@ def tui(path: Annotated[Path | None, typer.Argument()] = None) -> None:
 @app.command()
 def web(
     host: Annotated[str, typer.Option(help="Address to bind.")] = "127.0.0.1",
-    port: Annotated[int, typer.Option(help="TCP port to bind.")] = 8765,
+    port: Annotated[int, typer.Option(help="TCP port to bind.", min=0, max=65535)] = 8765,
     local_root: Annotated[
         Path | None, typer.Option("--path", help="Also discover bundles below this path.")
     ] = None,
@@ -512,7 +547,7 @@ def list_concepts(
         records = [item.summary_dict(ref.alias) for item in concepts]
         if format == ConceptListFormat.JSONL:
             for record in records:
-                console.print(json.dumps(record, default=str))
+                _raw_output(json.dumps(record, default=str), end="\n")
         else:
             _json({"schema_version": 1, "concepts": records})
         return
@@ -532,7 +567,10 @@ def show(reference: str, source: Annotated[bool, typer.Option("--source")] = Fal
     concept = load_bundle(ref.path).get(concept_id)
     if not concept:
         raise typer.BadParameter(f"unknown concept: {reference}")
-    console.print(concept.source if source else Markdown(concept.body))
+    if source:
+        _raw_output(concept.source)
+    else:
+        console.print(Markdown(concept.body))
 
 
 @app.command()
@@ -581,10 +619,17 @@ def search(
     if format == TextJsonFormat.JSON:
         _json({"schema_version": 1, "hits": [hit.to_dict() for hit in hits]})
         return
-    table = Table("Citation", "Type", "Description", "Match", expand=True)
-    for hit in hits:
-        table.add_row(hit.citation, hit.concept_type, hit.description, hit.snippet)
-    console.print(table)
+    if not hits:
+        console.print("No matches.")
+        return
+    for index, hit in enumerate(hits):
+        if index:
+            _raw_output("\n")
+        _raw_output(hit.citation, end="\n")
+        console.print(
+            Padding(Text(f"{hit.concept_type or '?'} · {hit.description}"), (0, 0, 0, 2))
+        )
+        console.print(Padding(_search_snippet(hit.snippet, query), (0, 0, 0, 2)))
 
 
 @searches_app.command("list")
@@ -672,10 +717,10 @@ def status(
     if diff:
         if data.get("staged_diff"):
             console.print("\n[bold]Staged[/]")
-            console.print(data["staged_diff"], markup=False)
+            _raw_output(data["staged_diff"])
         if data.get("diff"):
             console.print("\n[bold]Unstaged[/]")
-            console.print(data["diff"], markup=False)
+            _raw_output(data["diff"])
 
 
 @app.command()
@@ -735,7 +780,8 @@ def import_data(
         console.print(f"Imported {len(changes)} concept(s).")
         return
     for path, content in changes.items():
-        console.print(f"[bold]{path.relative_to(ref.path)}[/]\n{content}")
+        console.print(f"[bold]{path.relative_to(ref.path)}[/]")
+        _raw_output(content)
     console.print(f"Previewed {len(changes)} concept(s); add --write to apply.")
 
 
@@ -819,7 +865,7 @@ def index(
     else:
         for path, new in changes.items():
             old = path.read_text(encoding="utf-8") if path.exists() else ""
-            console.print(unified_diff(path, old, new, ref.path), markup=False, end="")
+            _raw_output(unified_diff(path, old, new, ref.path))
     console.print(f"{len(changes)} index file(s) {'written' if write else 'would change'}")
     if check and changes:
         raise typer.Exit(1)
@@ -868,9 +914,9 @@ def graph(
     if format == GraphFormat.JSON:
         _json(data)
     elif format == GraphFormat.DOT:
-        console.print(graph_dot(data), markup=False)
+        _raw_output(graph_dot(data), end="\n")
     else:
-        console.print(graph_mermaid(data), markup=False)
+        _raw_output(graph_mermaid(data), end="\n")
 
 
 @app.command("new")
@@ -923,7 +969,7 @@ def new_concept(
         console.print(f"created {path.relative_to(ref.path)}")
     else:
         console.print(f"Would create {path.relative_to(ref.path)}:\n")
-        console.print(text, markup=False)
+        _raw_output(text)
 
 
 @app.command()
@@ -1045,7 +1091,7 @@ async def _run_chat(
             changeset = workspace.changeset()
             console.print(f"\n[bold]Staged changes ({len(changeset.changes)} files)[/]")
             for change in changeset.changes:
-                console.print(change.diff, markup=False)
+                _raw_output(change.diff)
             if changeset.diagnostics:
                 console.print(_diagnostic_table(changeset.diagnostics, workspace.root))
             if apply:
@@ -1104,16 +1150,21 @@ def apply_changeset(
 @changesets_app.command("list")
 def changesets_list() -> None:
     """List persisted staged work sessions."""
-    table = Table("ID", "Created", "Source", "Files", "Diagnostics")
-    for manifest in PendingChangeStore().list():
-        table.add_row(
-            str(manifest.get("id", "")),
-            str(manifest.get("created_at", "")),
-            str(manifest.get("source_root", "")),
-            str(len(manifest.get("files", []))),
-            str(len(manifest.get("diagnostics", []))),
+    manifests = PendingChangeStore().list()
+    if not manifests:
+        console.print("No staged changesets.")
+        return
+    for index, manifest in enumerate(manifests):
+        if index:
+            _raw_output("\n")
+        _raw_output(str(manifest.get("id", "")), end="\n")
+        console.print(
+            f"  Created: {manifest.get('created_at', '')}\n"
+            f"  Source: {manifest.get('source_root', '')}\n"
+            f"  Files: {len(manifest.get('files', []))} · "
+            f"Diagnostics: {len(manifest.get('diagnostics', []))}",
+            markup=False,
         )
-    console.print(table)
 
 
 @changesets_app.command("show")
@@ -1127,7 +1178,7 @@ def changesets_show(changeset_id: str) -> None:
     try:
         changeset = workspace.changeset()
         for change in changeset.changes:
-            console.print(change.diff, markup=False)
+            _raw_output(change.diff)
         if changeset.conflicts:
             error_console.print("[red]Conflicts:[/] " + ", ".join(changeset.conflicts))
         if changeset.diagnostics:
@@ -1151,17 +1202,20 @@ def sessions_list() -> None:
     """List saved provider-native session mappings."""
     with SearchDatabase() as database:
         sessions = database.list_sessions()
-    table = Table("ID", "Provider", "Mode", "Scope", "Created", "Native ID")
-    for session in sessions:
-        table.add_row(
-            session.id,
-            session.provider,
-            session.mode.value,
-            ", ".join(session.scope),
-            session.created_at,
-            session.native_id or "—",
+    if not sessions:
+        console.print("No saved sessions.")
+        return
+    for index, session in enumerate(sessions):
+        if index:
+            _raw_output("\n")
+        _raw_output(session.id, end="\n")
+        console.print(
+            f"  Provider: {session.provider} · Mode: {session.mode.value}\n"
+            f"  Scope: {', '.join(session.scope) or '—'}\n"
+            f"  Created: {session.created_at}\n"
+            f"  Native ID: {session.native_id or '—'}",
+            markup=False,
         )
-    console.print(table)
 
 
 async def _resume_session(session_id: str, question: str) -> None:
@@ -1257,7 +1311,7 @@ def print_mcp_config(
     ] = "okfleet",
 ) -> None:
     """Print a provider-compatible MCP configuration snippet."""
-    console.print(mcp_config(command), markup=False)
+    _raw_output(mcp_config(command), end="\n")
 
 
 def main() -> None:
